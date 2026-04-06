@@ -24,7 +24,7 @@ const fmtNum = (n) => (n % 1 === 0 ? n : n.toFixed(1));
 /* ─── API Storage ─── */
 const loadAll = async () => {
   try {
-    const res = await fetch("/api/data");
+  const res = await fetch("/api/data", { cache: "no-store" });
     return await res.json();
   } catch {
     return { consultants: [], clients: [], entries: {}, admins: [] };
@@ -33,7 +33,7 @@ const loadAll = async () => {
 
 const saveData = async (patch) => {
   try {
-    await fetch("/api/data", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    await fetch("/api/data", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
   } catch (e) { console.error("Save error:", e); }
 };
 
