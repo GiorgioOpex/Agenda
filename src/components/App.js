@@ -22,19 +22,33 @@ const weekNum = (y, m, d) => { const dy = Math.floor((new Date(y, m, d) - new Da
 const fmtNum = (n) => (n % 1 === 0 ? n : n.toFixed(1));
 
 /* ─── API Storage ─── */
+const EMPTY = { consultants: [], clients: [], entries: {}, admins: [] };
+
 const loadAll = async () => {
   try {
-  const res = await fetch("/api/data", { cache: "no-store" });
+    const res = await fetch("/api/data?t=" + Date.now());
+    if (!res.ok) return { ...EMPTY };
     return await res.json();
-  } catch {
-    return { consultants: [], clients: [], entries: {}, admins: [] };
+  } catch (e) {
+    console.error("Load error:", e);
+    return { ...EMPTY };
   }
 };
 
-const saveData = async (patch) => {
+const saveAll = async (fullData) => {
   try {
-    await fetch("/api/data", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
-  } catch (e) { console.error("Save error:", e); }
+    const res = await fetch("/api/data", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fullData),
+    });
+    const result = await res.json();
+    if (!result.ok) console.error("Save failed:", result.error);
+    return result.ok;
+  } catch (e) {
+    console.error("Save error:", e);
+    return false;
+  }
 };
 
 /* ─── Styles ─── */
@@ -43,7 +57,7 @@ const sInput = { padding: "9px 12px", borderRadius: 8, border: "1px solid #ddd",
 const sBtn = { padding: "9px 16px", borderRadius: 8, border: "none", background: C.red, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT, whiteSpace: "nowrap" };
 const sBtnOut = { padding: "9px 16px", borderRadius: 8, border: "1px solid #ddd", background: "#fff", color: "#555", fontSize: 14, cursor: "pointer", fontFamily: FONT };
 
-/* ─── Logo (CSS) ─── */
+/* ─── Logo ─── */
 function Logo({ size = 28 }) {
   return (
     <div style={{ display: "inline-flex", alignItems: "baseline", gap: 1, userSelect: "none" }}>
@@ -54,15 +68,15 @@ function Logo({ size = 28 }) {
 }
 
 /* ═══ LOGIN ═══ */
-function LoginScreen({ consultants, admins, onLoginC, onLoginA }) {
+function LoginScreen({ data, onLoginC, onLoginA, onDataChange }) {
   const [mode, setMode] = useState("consultant");
-  const [sel, setSel] = useState(consultants[0] || "");
+  const [sel, setSel] = useState(data.consultants[0] || "");
   const [adminName, setAdminName] = useState("");
   const [adminPw, setAdminPw] = useState("");
   const [err, setErr] = useState("");
 
   const doAdminLogin = () => {
-    const found = admins.find((a) => a.name.toLowerCase() === adminName.toLowerCase().trim());
+    const found = data.admins.find((a) => a.name.toLowerCase() === adminName.toLowerCase().trim());
     if (!found) { setErr("Amministratore non trovato"); return; }
     if (hashPw(adminPw) !== found.passHash) { setErr("Password errata"); setAdminPw(""); return; }
     onLoginA(found.name);
@@ -82,20 +96,20 @@ function LoginScreen({ consultants, admins, onLoginC, onLoginA }) {
           ))}
         </div>
         {mode === "consultant" && (
-          consultants.length === 0 ? (
+          data.consultants.length === 0 ? (
             <p style={{ textAlign: "center", color: "#888", fontSize: 14 }}>Nessun consulente configurato. Un admin deve configurare il sistema.</p>
           ) : (
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, color: C.greyMd, display: "block", marginBottom: 8 }}>Seleziona il tuo nome</label>
               <select value={sel} onChange={(e) => setSel(e.target.value)} style={{ ...sInput, width: "100%", padding: "12px 14px", border: `2px solid ${C.red}`, marginBottom: 20, fontWeight: 600, color: C.greyDk }}>
-                {consultants.map((c) => (<option key={c} value={c}>{c}</option>))}
+                {data.consultants.map((c) => (<option key={c} value={c}>{c}</option>))}
               </select>
               <button onClick={() => onLoginC(sel)} style={{ ...sBtn, width: "100%", padding: "13px 0", fontSize: 15 }}>Accedi al mio calendario</button>
             </div>
           )
         )}
         {mode === "admin" && (
-          admins.length === 0 ? (<FirstAdmin onDone={onLoginA} />) : (
+          data.admins.length === 0 ? (<FirstAdmin data={data} onDone={onLoginA} onDataChange={onDataChange} />) : (
             <div>
               <input value={adminName} onChange={(e) => { setAdminName(e.target.value); setErr(""); }} placeholder="Nome admin" style={{ ...sInput, width: "100%", marginBottom: 12 }} />
               <input type="password" value={adminPw} onChange={(e) => { setAdminPw(e.target.value); setErr(""); }} onKeyDown={(e) => e.key === "Enter" && doAdminLogin()} placeholder="Password" style={{ ...sInput, width: "100%", marginBottom: 4 }} />
@@ -109,14 +123,19 @@ function LoginScreen({ consultants, admins, onLoginC, onLoginA }) {
   );
 }
 
-function FirstAdmin({ onDone }) {
+function FirstAdmin({ data, onDone, onDataChange }) {
   const [n, setN] = useState(""); const [p, setP] = useState(""); const [p2, setP2] = useState(""); const [e, setE] = useState("");
+  const [saving, setSaving] = useState(false);
   const go = async () => {
     if (!n.trim()) { setE("Inserisci un nome"); return; }
     if (p.length < 4) { setE("Min 4 caratteri"); return; }
     if (p !== p2) { setE("Non coincidono"); return; }
-    await saveData({ admins: [{ name: n.trim(), passHash: hashPw(p) }] });
-    onDone(n.trim());
+    setSaving(true);
+    const newData = { ...data, admins: [{ name: n.trim(), passHash: hashPw(p) }] };
+    const ok = await saveAll(newData);
+    setSaving(false);
+    if (ok) { onDataChange(newData); onDone(n.trim()); }
+    else { setE("Errore nel salvataggio, riprova"); }
   };
   return (
     <div>
@@ -127,7 +146,7 @@ function FirstAdmin({ onDone }) {
       <input type="password" value={p} onChange={(x) => { setP(x.target.value); setE(""); }} placeholder="Password" style={{ ...sInput, width: "100%", marginBottom: 10 }} />
       <input type="password" value={p2} onChange={(x) => { setP2(x.target.value); setE(""); }} onKeyDown={(x) => x.key === "Enter" && go()} placeholder="Conferma" style={{ ...sInput, width: "100%", marginBottom: 4 }} />
       {e && <p style={{ margin: "8px 0 0", fontSize: 13, color: C.red, fontWeight: 600 }}>{e}</p>}
-      <button onClick={go} style={{ ...sBtn, width: "100%", padding: "13px 0", fontSize: 15, marginTop: 16 }}>Crea admin e accedi</button>
+      <button onClick={go} disabled={saving} style={{ ...sBtn, width: "100%", padding: "13px 0", fontSize: 15, marginTop: 16, opacity: saving ? 0.6 : 1 }}>{saving ? "Salvataggio..." : "Crea admin e accedi"}</button>
     </div>
   );
 }
@@ -204,15 +223,18 @@ function DayModal({ dk, entry, clients, onSave, onClose }) {
   const [ps, setPs] = useState(entry && entry.pm ? entry.pm.status || "" : "");
   const [pc, setPc] = useState(entry && entry.pm ? entry.pm.client || "" : "");
   const [pn, setPn] = useState(entry && entry.pm ? entry.pm.note || "" : "");
+  const [saving, setSaving] = useState(false);
   const info = parseKey(dk);
 
-  const doSave = () => {
+  const doSave = async () => {
     if (as === "client" && !ac) { alert("Seleziona un cliente per la mattina"); return; }
     if (ps === "client" && !pc) { alert("Seleziona un cliente per il pomeriggio"); return; }
+    setSaving(true);
     const data = {};
     if (as) data.am = { status: as, client: as === "client" ? ac : "", note: an };
     if (ps) data.pm = { status: ps, client: ps === "client" ? pc : "", note: pn };
-    onSave(dk, Object.keys(data).length > 0 ? data : null);
+    await onSave(dk, Object.keys(data).length > 0 ? data : null);
+    setSaving(false);
   };
 
   return (
@@ -226,7 +248,7 @@ function DayModal({ dk, entry, clients, onSave, onClose }) {
         </div>
         <HalfEditor label="🌇 Pomeriggio" status={ps} setStatus={setPs} client={pc} setClient={setPc} note={pn} setNote={setPn} clients={clients} />
         <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-          <button onClick={doSave} style={{ ...sBtn, flex: 1, padding: "11px 0" }}>Salva</button>
+          <button onClick={doSave} disabled={saving} style={{ ...sBtn, flex: 1, padding: "11px 0", opacity: saving ? 0.6 : 1 }}>{saving ? "Salvataggio..." : "Salva"}</button>
           <button onClick={() => onSave(dk, null)} style={{ ...sBtnOut, color: "#999" }}>Cancella</button>
           <button onClick={onClose} style={sBtnOut}>Chiudi</button>
         </div>
@@ -255,7 +277,7 @@ function Legenda() {
   );
 }
 
-/* ═══ ADMIN: PANORAMICA ═══ */
+/* ═══ PANORAMICA ═══ */
 function Panoramica({ entries, consultants, year, month }) {
   const days = daysInMonth(year, month);
   const fd = firstDow(year, month);
@@ -285,7 +307,7 @@ function Panoramica({ entries, consultants, year, month }) {
   );
 }
 
-/* ═══ ADMIN: PER CLIENTE ═══ */
+/* ═══ PER CLIENTE ═══ */
 function VistaCliente({ entries, consultants, clients, year, month }) {
   const [sel, setSel] = useState(clients[0] || "");
   const days = daysInMonth(year, month);
@@ -329,13 +351,13 @@ function VistaCliente({ entries, consultants, clients, year, month }) {
           </tr></thead>
           <tbody>{weeklyData.map((w) => (
             <tr key={w.wn}>
-              <td style={{ padding: "8px 14px", borderBottom: "1px solid #eee", fontWeight: 600, color: C.greyDk }}>Sett. {w.wn} <span style={{ fontWeight: 400, color: "#999", fontSize: 11 }}>({w.s}–{w.e} {MESI[month].substring(0, 3)})</span></td>
+              <td style={{ padding: "8px 14px", borderBottom: "1px solid #eee", fontWeight: 600, color: C.greyDk, textAlign: "left" }}>Sett. {w.wn} <span style={{ fontWeight: 400, color: "#999", fontSize: 11 }}>({w.s}–{w.e} {MESI[month].substring(0, 3)})</span></td>
               <td style={{ padding: "8px", borderBottom: "1px solid #eee", textAlign: "center", fontWeight: 700, color: C.red, fontSize: 15 }}>{fmtNum(w.tot)}</td>
               {consultants.map((n) => { const cd = w.cons[n]; return (<td key={n} title={cd && cd.dd ? cd.dd.join(", ") : ""} style={{ padding: "8px", borderBottom: "1px solid #eee", textAlign: "center", color: cd && cd.h ? C.red : "#ccc" }}>{cd && cd.h ? fmtNum(cd.h) : "—"}</td>); })}
             </tr>
           ))}</tbody>
           <tfoot><tr style={{ background: "#FFF8F8" }}>
-            <td style={{ padding: "10px 14px", borderTop: `2px solid ${C.red}`, fontWeight: 700, color: C.greyDk }}>TOTALE</td>
+            <td style={{ padding: "10px 14px", borderTop: `2px solid ${C.red}`, fontWeight: 700, color: C.greyDk, textAlign: "left" }}>TOTALE</td>
             <td style={{ padding: "10px 8px", borderTop: `2px solid ${C.red}`, textAlign: "center", fontWeight: 700, color: C.red, fontSize: 16 }}>{fmtNum(grandTot)}</td>
             {consultants.map((n) => { const t = weeklyData.reduce((s, w) => s + (w.cons[n] ? w.cons[n].h : 0), 0); return (<td key={n} style={{ padding: "10px 8px", borderTop: `2px solid ${C.red}`, textAlign: "center", fontWeight: 700, color: t ? C.red : "#ccc" }}>{t ? fmtNum(t) : "—"}</td>); })}
           </tr></tfoot>
@@ -346,7 +368,7 @@ function VistaCliente({ entries, consultants, clients, year, month }) {
   );
 }
 
-/* ═══ ADMIN: CONSUNTIVO ═══ */
+/* ═══ CONSUNTIVO ═══ */
 function Consuntivo({ entries, consultants, clients, year, month }) {
   const report = useMemo(() => {
     const d = {};
@@ -376,7 +398,7 @@ function Consuntivo({ entries, consultants, clients, year, month }) {
           const r = report[n];
           return (
             <tr key={n}>
-              <td style={{ padding: "8px 14px", borderBottom: "1px solid #eee", fontWeight: 600, color: C.greyDk }}>{n}</td>
+              <td style={{ padding: "8px 14px", borderBottom: "1px solid #eee", fontWeight: 600, color: C.greyDk, textAlign: "left" }}>{n}</td>
               <td style={{ padding: "8px", borderBottom: "1px solid #eee", textAlign: "center", fontWeight: 700, color: C.red, fontSize: 16 }}>{fmtNum(r.tc)}</td>
               {clients.map((c) => (<td key={c} style={{ padding: "8px", borderBottom: "1px solid #eee", textAlign: "center", color: r.bc[c] ? C.red : "#ccc" }}>{r.bc[c] ? fmtNum(r.bc[c]) : "—"}</td>))}
               <td style={{ padding: "8px", borderBottom: "1px solid #eee", textAlign: "center", color: C.grey, fontWeight: 600 }}>{fmtNum(r.tb)}</td>
@@ -390,12 +412,15 @@ function Consuntivo({ entries, consultants, clients, year, month }) {
   );
 }
 
-/* ═══ SETTINGS ═══ */
-function Impostazioni({ consultants, clients, admins, onSave, onClose, onSaveAdmins }) {
-  const [cl, setCl] = useState([...consultants]); const [ll, setLl] = useState([...clients]); const [al, setAl] = useState([...admins]);
+/* ═══ IMPOSTAZIONI ═══ */
+function Impostazioni({ data, onSave, onClose }) {
+  const [cl, setCl] = useState([...data.consultants]);
+  const [ll, setLl] = useState([...data.clients]);
+  const [al, setAl] = useState([...data.admins]);
   const [nc, setNc] = useState(""); const [nl, setNl] = useState("");
   const [na, setNa] = useState(""); const [np, setNp] = useState(""); const [np2, setNp2] = useState(""); const [am, setAm] = useState("");
   const [tab, setTab] = useState("people");
+  const [saving, setSaving] = useState(false);
 
   const addAdmin = () => {
     if (!na.trim()) { setAm("Inserisci un nome"); return; } if (np.length < 4) { setAm("Min 4 caratteri"); return; }
@@ -403,7 +428,12 @@ function Impostazioni({ consultants, clients, admins, onSave, onClose, onSaveAdm
     setAl([...al, { name: na.trim(), passHash: hashPw(np) }]); setNa(""); setNp(""); setNp2(""); setAm("✅ Aggiunto!");
     setTimeout(() => setAm(""), 2000);
   };
-  const doSave = async () => { await onSave(cl, ll); await onSaveAdmins(al); };
+
+  const doSave = async () => {
+    setSaving(true);
+    await onSave(cl, ll, al);
+    setSaving(false);
+  };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={onClose}>
@@ -443,7 +473,7 @@ function Impostazioni({ consultants, clients, admins, onSave, onClose, onSaveAdm
           </div>
         )}
         <div style={{ display: "flex", gap: 10, marginTop: 24, borderTop: "1px solid #eee", paddingTop: 18 }}>
-          <button onClick={doSave} style={{ ...sBtn, flex: 1, padding: "12px 0" }}>💾 Salva</button>
+          <button onClick={doSave} disabled={saving} style={{ ...sBtn, flex: 1, padding: "12px 0", opacity: saving ? 0.6 : 1 }}>{saving ? "Salvataggio..." : "💾 Salva"}</button>
           <button onClick={onClose} style={sBtnOut}>Annulla</button>
         </div>
       </div>
@@ -453,35 +483,53 @@ function Impostazioni({ consultants, clients, admins, onSave, onClose, onSaveAdm
 
 /* ═══ MAIN APP ═══ */
 export default function App() {
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [cons, setCons] = useState([]); const [cls, setCls] = useState([]); const [ent, setEnt] = useState({}); const [adm, setAdm] = useState([]);
-  const [logged, setLogged] = useState(false); const [isAdmin, setIsAdmin] = useState(false); const [user, setUser] = useState("");
-  const [view, setView] = useState("personal"); const [yr, setYr] = useState(new Date().getFullYear()); const [mo, setMo] = useState(new Date().getMonth());
-  const [editDay, setEditDay] = useState(null); const [showSettings, setShowSettings] = useState(false);
+  const [logged, setLogged] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState("");
+  const [view, setView] = useState("personal");
+  const [yr, setYr] = useState(new Date().getFullYear());
+  const [mo, setMo] = useState(new Date().getMonth());
+  const [editDay, setEditDay] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
-  useEffect(() => { loadAll().then((d) => { setCons(d.consultants); setCls(d.clients); setEnt(d.entries); setAdm(d.admins); setLoading(false); }); }, []);
+  useEffect(() => {
+    loadAll().then((d) => { setData(d); setLoading(false); });
+  }, []);
 
   const loginC = (n) => { setUser(n); setIsAdmin(false); setLogged(true); setView("personal"); };
   const loginA = (n) => { setUser(n); setIsAdmin(true); setLogged(true); setView("admin"); };
   const logout = () => { setLogged(false); setIsAdmin(false); setUser(""); setView("personal"); setShowSettings(false); };
 
-  const handleSaveDay = useCallback(async (dk, data) => {
-    const u = { ...ent }; if (!u[user]) u[user] = {};
-    if (data) u[user][dk] = data; else delete u[user][dk];
-    setEnt(u); setEditDay(null); await saveData({ entries: u });
-  }, [ent, user]);
+  const handleSaveDay = useCallback(async (dk, val) => {
+    const newData = { ...data };
+    const entries = { ...newData.entries };
+    if (!entries[user]) entries[user] = {};
+    if (val) entries[user][dk] = val; else delete entries[user][dk];
+    newData.entries = entries;
+    setData(newData);
+    setEditDay(null);
+    await saveAll(newData);
+  }, [data, user]);
 
-  const handleSaveSettings = useCallback(async (nc, nl) => {
-    setCons(nc); setCls(nl); await saveData({ consultants: nc, clients: nl }); setShowSettings(false);
-  }, []);
-
-  const handleSaveAdmins = useCallback(async (na) => { setAdm(na); await saveData({ admins: na }); }, []);
+  const handleSaveSettings = useCallback(async (cl, ll, al) => {
+    const newData = { ...data, consultants: cl, clients: ll, admins: al };
+    setData(newData);
+    setShowSettings(false);
+    await saveAll(newData);
+  }, [data]);
 
   const prevMonth = () => { if (mo === 0) { setMo(11); setYr((y) => y - 1); } else setMo((m) => m - 1); };
   const nextMonth = () => { if (mo === 11) { setMo(0); setYr((y) => y + 1); } else setMo((m) => m + 1); };
 
-  if (loading) { return (<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: FONT, color: C.red, fontSize: 18 }}>Caricamento...</div>); }
-  if (!logged) { return (<LoginScreen consultants={cons} admins={adm} onLoginC={loginC} onLoginA={loginA} />); }
+  if (loading || !data) {
+    return (<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: FONT, color: C.red, fontSize: 18 }}>Caricamento...</div>);
+  }
+
+  if (!logged) {
+    return (<LoginScreen data={data} onLoginC={loginC} onLoginA={loginA} onDataChange={setData} />);
+  }
 
   const adminViews = [["admin", "👥 Panoramica"], ["client", "🏢 Per Cliente"], ["report", "📊 Consuntivo"]];
 
@@ -507,13 +555,13 @@ export default function App() {
           <button onClick={nextMonth} style={{ background: "#fff", border: "1px solid #ddd", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 18 }}>›</button>
         </div>
         <Legenda />
-        {!isAdmin && (<div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,.06)" }}><Calendar year={yr} month={mo} entries={ent[user] || {}} onDayClick={setEditDay} /></div>)}
-        {isAdmin && view === "admin" && (<div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,.06)" }}><h3 style={{ margin: "0 0 14px", color: C.greyDk, fontSize: 16 }}>Panoramica — {MESI[mo]} {yr}</h3><Panoramica entries={ent} consultants={cons} year={yr} month={mo} /></div>)}
-        {isAdmin && view === "client" && (<div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,.06)" }}><h3 style={{ margin: "0 0 14px", color: C.greyDk, fontSize: 16 }}>Per Cliente — {MESI[mo]} {yr}</h3><VistaCliente entries={ent} consultants={cons} clients={cls} year={yr} month={mo} /></div>)}
-        {isAdmin && view === "report" && (<div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,.06)" }}><h3 style={{ margin: "0 0 14px", color: C.greyDk, fontSize: 16 }}>Consuntivo — {MESI[mo]} {yr}</h3><Consuntivo entries={ent} consultants={cons} clients={cls} year={yr} month={mo} /></div>)}
+        {!isAdmin && (<div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,.06)" }}><Calendar year={yr} month={mo} entries={data.entries[user] || {}} onDayClick={setEditDay} /></div>)}
+        {isAdmin && view === "admin" && (<div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,.06)" }}><h3 style={{ margin: "0 0 14px", color: C.greyDk, fontSize: 16 }}>Panoramica — {MESI[mo]} {yr}</h3><Panoramica entries={data.entries} consultants={data.consultants} year={yr} month={mo} /></div>)}
+        {isAdmin && view === "client" && (<div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,.06)" }}><h3 style={{ margin: "0 0 14px", color: C.greyDk, fontSize: 16 }}>Per Cliente — {MESI[mo]} {yr}</h3><VistaCliente entries={data.entries} consultants={data.consultants} clients={data.clients} year={yr} month={mo} /></div>)}
+        {isAdmin && view === "report" && (<div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,.06)" }}><h3 style={{ margin: "0 0 14px", color: C.greyDk, fontSize: 16 }}>Consuntivo — {MESI[mo]} {yr}</h3><Consuntivo entries={data.entries} consultants={data.consultants} clients={data.clients} year={yr} month={mo} /></div>)}
       </div>
-      {editDay && (<DayModal dk={editDay} entry={(ent[user] || {})[editDay]} clients={cls} onSave={handleSaveDay} onClose={() => setEditDay(null)} />)}
-      {showSettings && (<Impostazioni consultants={cons} clients={cls} admins={adm} onSave={handleSaveSettings} onClose={() => setShowSettings(false)} onSaveAdmins={handleSaveAdmins} />)}
+      {editDay && (<DayModal dk={editDay} entry={(data.entries[user] || {})[editDay]} clients={data.clients} onSave={handleSaveDay} onClose={() => setEditDay(null)} />)}
+      {showSettings && (<Impostazioni data={data} onSave={handleSaveSettings} onClose={() => setShowSettings(false)} />)}
     </div>
   );
 }
