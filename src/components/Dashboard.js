@@ -1,6 +1,15 @@
+"use client";
 import { useMemo } from "react";
 import { MESI, CL, FONT, fmtNum, calcMonthActuals } from "./shared";
 
+export function Dashboard(p){
+  var data=p.data,year=p.year,target=data.targetMensile||0;
+  var planned=(data.clients||[]).reduce(function(s,c){return s+((data.clientBudgets||{})[c]||0);},0);
+  var cM=new Date().getMonth();
+  var months=useMemo(function(){return MESI.map(function(nome,mi){var a=calcMonthActuals(data.entries,data.consultants,year,mi);return{nome:nome.substring(0,3),actual:a.totalClient,planned:planned,target:target};});},[data,year,target,planned]);
+  var mx=Math.max(target,planned,Math.max.apply(null,months.map(function(m){return m.actual;})))||1;
+  return(<div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12,marginBottom:24}}>
       <div style={{padding:"14px 18px",background:"#FFF3F3",borderRadius:12,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Target mensile</div><div style={{fontSize:28,fontWeight:700,color:CL.red}}>{fmtNum(target)}</div><div style={{fontSize:11,color:"#888"}}>giornate</div></div>
       <div style={{padding:"14px 18px",background:"#E8F5E9",borderRadius:12,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Richieste clienti</div><div style={{fontSize:28,fontWeight:700,color:"#2E7D32"}}>{fmtNum(planned)}</div><div style={{fontSize:11,color:"#888"}}>gg/mese</div></div>
       <div style={{padding:"14px 18px",background:CL.greyLt,borderRadius:12,border:"1px solid #ddd"}}><div style={{fontSize:11,color:CL.greyMd}}>Effettive {MESI[cM]}</div><div style={{fontSize:28,fontWeight:700,color:CL.greyDk}}>{fmtNum(months[cM].actual)}</div></div>
@@ -19,6 +28,3 @@ import { MESI, CL, FONT, fmtNum, calcMonthActuals } from "./shared";
         <div style={{fontSize:10,color:i===cM?CL.red:"#888",fontWeight:i===cM?700:400,marginTop:4}}>{m.nome}</div></div>);})}</div>
       <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Mesi futuri in trasparenza (proiezione)</p></div></div>);
 }
-
-function Impostazioni(p){
-  var data=p.data,onSave=p.onSave,onClose=p.onClose;

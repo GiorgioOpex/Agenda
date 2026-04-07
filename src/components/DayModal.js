@@ -1,3 +1,4 @@
+"use client";
 import { useState } from "react";
 import { MESI, CL, STATI, FONT, sI, sB, sO, parseKey } from "./shared";
 

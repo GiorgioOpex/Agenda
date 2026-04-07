@@ -1,3 +1,4 @@
+"use client";
 import { useState } from "react";
 import { GIORNI, CL, STATI, FONT, makeKey, daysInMonth, firstDow } from "./shared";
 

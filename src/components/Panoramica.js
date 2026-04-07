@@ -1,3 +1,4 @@
+"use client";
 import { CL, STATI, FONT, makeKey, daysInMonth, firstDow, fmtNum } from "./shared";
 
 export function Panoramica(p){

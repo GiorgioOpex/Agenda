@@ -1,3 +1,4 @@
+"use client";
 import { useState } from "react";
 import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcAllActuals, calcContractTotal } from "./shared";
 

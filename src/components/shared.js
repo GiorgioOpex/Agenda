@@ -1,3 +1,4 @@
+"use client";
 import { useState } from "react";
 
 export var MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];

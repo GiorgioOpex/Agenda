@@ -1,3 +1,4 @@
+"use client";
 import { useMemo } from "react";
 import { CL, FONT, fmtNum, makeKey, daysInMonth } from "./shared";
 
@@ -22,11 +23,3 @@ export function Consuntivo(p){
         return<tr key={c}><td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>{c}</td><td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center"}}>{fmtNum(bud)}</td><td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.red}}>{fmtNum(eff)}</td><td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:diff>=0?"#2E7D32":CL.red}}>{(diff>=0?"+":"")+fmtNum(diff)}</td></tr>;})}</tbody></table></div>}
     <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Valori in giornate (0.5 = mezza giornata)</p></div>);
 }
-
-function Dashboard(p){
-  var data=p.data,year=p.year,target=data.targetMensile||0;
-  var planned=(data.clients||[]).reduce(function(s,c){return s+((data.clientBudgets||{})[c]||0);},0);
-  var cM=new Date().getMonth();
-  var months=useMemo(function(){return MESI.map(function(nome,mi){var a=calcMonthActuals(data.entries,data.consultants,year,mi);return{nome:nome.substring(0,3),actual:a.totalClient,planned:planned,target:target};});},[data,year,target,planned]);
-  var mx=Math.max(target,planned,Math.max.apply(null,months.map(function(m){return m.actual;})))||1;
-  return(<div>

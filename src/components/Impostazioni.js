@@ -1,6 +1,10 @@
+"use client";
 import { useState } from "react";
 import { CL, FONT, sI, sB, sO, fmtNum, hashPw } from "./shared";
 
+export function Impostazioni(p){
+  var data=p.data,onSave=p.onSave,onClose=p.onClose;
+  var c1=useState([].concat(data.consultants)),cl=c1[0],sCl=c1[1];var l1=useState([].concat(data.clients)),ll=l1[0],sLl=l1[1];
   var a1=useState([].concat(data.admins)),al=a1[0],sAl=a1[1];var b1=useState(Object.assign({},data.clientBudgets||{})),bud=b1[0],sBud=b1[1];
   var ed1=useState(Object.assign({},data.clientEndDates||{})),endD=ed1[0],sEndD=ed1[1];
   var t1=useState(data.targetMensile||0),tM=t1[0],sTM=t1[1];

@@ -1,3 +1,4 @@
+"use client";
 import { useState } from "react";
 import { CL, FONT, sI, sB, Logo, hashPw, saveAll } from "./shared";
 
