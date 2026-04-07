@@ -2,7 +2,7 @@ import { put, list } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 const BLOB_NAME = "agenda-opex-data.json";
-const EMPTY = { consultants: [], clients: [], entries: {}, admins: [] };
+const EMPTY = { consultants: [], clients: [], clientBudgets: {}, entries: {}, admins: [], targetMensile: 0 };
 
 async function readData() {
   try {
@@ -11,7 +11,7 @@ async function readData() {
     const response = await fetch(result.blobs[0].url, { cache: "no-store" });
     if (!response.ok) return { ...EMPTY };
     const data = await response.json();
-    return data;
+    return { ...EMPTY, ...data };
   } catch (e) {
     console.error("Read error:", e);
     return { ...EMPTY };
@@ -35,10 +35,7 @@ export async function GET() {
     const data = await readData();
     return new NextResponse(JSON.stringify(data), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store, no-cache, must-revalidate" },
     });
   } catch (e) {
     return NextResponse.json(EMPTY);
@@ -49,20 +46,16 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const db = await readData();
-
     if (body.consultants !== undefined) db.consultants = body.consultants;
     if (body.clients !== undefined) db.clients = body.clients;
+    if (body.clientBudgets !== undefined) db.clientBudgets = body.clientBudgets;
     if (body.entries !== undefined) db.entries = body.entries;
     if (body.admins !== undefined) db.admins = body.admins;
-
+    if (body.targetMensile !== undefined) db.targetMensile = body.targetMensile;
     await writeData(db);
-
     return new NextResponse(JSON.stringify({ ok: true }), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store, no-cache, must-revalidate" },
     });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
