@@ -2,7 +2,7 @@ import { put, list } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 const BLOB_NAME = "agenda-opex-data.json";
-const EMPTY = { consultants: [], clients: [], clientBudgets: {}, entries: {}, admins: [], targetMensile: 0 };
+const EMPTY = { consultants: [], clients: [], clientBudgets: {}, clientEndDates: {}, entries: {}, admins: [], targetMensile: 0 };
 
 async function readData() {
   try {
@@ -20,11 +20,7 @@ async function readData() {
 
 async function writeData(data) {
   const json = JSON.stringify(data);
-  await put(BLOB_NAME, json, {
-    access: "public",
-    addRandomSuffix: false,
-    contentType: "application/json",
-  });
+  await put(BLOB_NAME, json, { access: "public", addRandomSuffix: false, contentType: "application/json" });
 }
 
 export const dynamic = "force-dynamic";
@@ -37,9 +33,7 @@ export async function GET() {
       status: 200,
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store, no-cache, must-revalidate" },
     });
-  } catch (e) {
-    return NextResponse.json(EMPTY);
-  }
+  } catch (e) { return NextResponse.json(EMPTY); }
 }
 
 export async function POST(request) {
@@ -49,6 +43,7 @@ export async function POST(request) {
     if (body.consultants !== undefined) db.consultants = body.consultants;
     if (body.clients !== undefined) db.clients = body.clients;
     if (body.clientBudgets !== undefined) db.clientBudgets = body.clientBudgets;
+    if (body.clientEndDates !== undefined) db.clientEndDates = body.clientEndDates;
     if (body.entries !== undefined) db.entries = body.entries;
     if (body.admins !== undefined) db.admins = body.admins;
     if (body.targetMensile !== undefined) db.targetMensile = body.targetMensile;
@@ -57,7 +52,6 @@ export async function POST(request) {
       status: 200,
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store, no-cache, must-revalidate" },
     });
-  } catch (e) {
-    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
-  }
+  } catch (e) { return NextResponse.json({ ok: false, error: e.message }, { status: 500 }); }
 }
+
