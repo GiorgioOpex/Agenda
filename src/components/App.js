@@ -21,6 +21,7 @@ export default function App(){
   function loginA(n){sUser(n);sAdm(true);sLog(true);sView("admin");}
   function logout(){sLog(false);sAdm(false);sUser("");sView("personal");sSS(false);}
   var hSD=useCallback(async function(dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};if(val)ent[user][dk]=val;else delete ent[user][dk];nd.entries=ent;sData(nd);sED(null);await saveAll(nd);},[data,user]);
+  var hMV=useCallback(async function(fromDk,toDk,entryData){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};ent[user][toDk]=entryData;delete ent[user][fromDk];nd.entries=ent;sData(nd);sED(null);await saveAll(nd);},[data,user]);
   var hSS=useCallback(async function(cl,ll,al,budgets,endDates,targetM){var nd=Object.assign({},data,{consultants:cl,clients:ll,admins:al,clientBudgets:budgets,clientEndDates:endDates,targetMensile:targetM});sData(nd);sSS(false);await saveAll(nd);},[data]);
   function pM(){if(mo===0){sMo(11);sYr(function(y){return y-1;});}else sMo(function(m){return m-1;});}
   function nM(){if(mo===11){sMo(0);sYr(function(y){return y+1;});}else sMo(function(m){return m+1;});}
@@ -46,6 +47,6 @@ export default function App(){
       {isAdm&&view==="client"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Cliente - {MESI[mo]} {yr}</h3><VistaCliente entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} year={yr} month={mo}/></div>}
       {isAdm&&view==="report"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Consuntivo - {MESI[mo]} {yr}</h3><Consuntivo entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} year={yr} month={mo}/></div>}
       {isAdm&&view==="dashboard"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Dashboard - {yr}</h3><Dashboard data={data} year={yr}/></div>}</div>
-    {editDay&&<DayModal dk={editDay} entry={(data.entries[user]||{})[editDay]} clients={data.clients} onSave={hSD} onClose={function(){sED(null);}}/>}
+    {editDay&&<DayModal dk={editDay} entry={(data.entries[user]||{})[editDay]} clients={data.clients} onSave={hSD} onMove={hMV} onClose={function(){sED(null);}}/>}
     {showS&&<Impostazioni data={data} onSave={hSS} onClose={function(){sSS(false);}}/>}</div>);
 }
