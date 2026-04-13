@@ -13,17 +13,20 @@ export var sO={padding:"9px 16px",borderRadius:8,border:"1px solid #ddd",backgro
 
 export function getClientColor(clients,clientName){
   if(!clientName||!clients)return CL.grey;
-  var idx=clients.indexOf(clientName);
-  if(idx<0)return CL.red;
-  return CLIENT_COLORS[idx%CLIENT_COLORS.length];
-}
+  var idx=clients.indexOf(clientName);if(idx<0)return CL.red;
+  return CLIENT_COLORS[idx%CLIENT_COLORS.length];}
 
 export function getHalfBg(half,clients){
   if(!half||!half.status)return "transparent";
   if(half.status==="busy")return CL.grey;
   if(half.status==="client"&&half.client)return getClientColor(clients,half.client);
-  return CL.red;
-}
+  return CL.red;}
+
+export function getUsedClients(entries){
+  var used={};if(!entries)return[];
+  Object.keys(entries).forEach(function(key){var e=entries[key];if(!e)return;
+    ["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client"&&x.client)used[x.client]=true;});});
+  return Object.keys(used);}
 
 export function makeKey(y,m,d){return y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");}
 export function parseKey(k){var p=k.split("-").map(Number);return{year:p[0],month:p[1]-1,day:p[2]};}
@@ -55,11 +58,14 @@ export async function saveAll(fd){try{var res=await fetch("/api/data",{method:"P
 export function Logo(p){return(<img src="/Logo_Opex.jpg" alt="OPEX" style={{height:p.h||36,objectFit:"contain"}}/>);}
 
 export function Legenda(p){
-  var clients=p.clients||[];
+  var clients=p.clients||[],entries=p.entries||{};
+  var used=getUsedClients(entries);
+  var hasBusy=false;
+  Object.keys(entries).forEach(function(key){var e=entries[key];if(!e)return;
+    ["am","pm"].forEach(function(h){if(e[h]&&e[h].status==="busy")hasBusy=true;});});
   return(<div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:16,alignItems:"center"}}>
-    {clients.map(function(c,i){return<div key={c} style={{display:"flex",alignItems:"center",gap:4}}>
+    {used.map(function(c){return<div key={c} style={{display:"flex",alignItems:"center",gap:4}}>
       <div style={{width:13,height:13,borderRadius:4,background:getClientColor(clients,c)}}/><span style={{fontSize:11,color:CL.greyMd}}>{c}</span></div>;})}
-    <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:CL.grey}}/><span style={{fontSize:11,color:CL.greyMd}}>Altro impegno</span></div>
-    <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:6}}><div style={{width:16,height:12,borderRadius:3,overflow:"hidden",display:"flex",flexDirection:"column",border:"1px solid #ccc"}}><div style={{flex:1,background:CL.red}}/><div style={{flex:1,background:CL.grey}}/></div><span style={{fontSize:11,color:"#888"}}>AM/PM</span></div>
+    {hasBusy&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:CL.grey}}/><span style={{fontSize:11,color:CL.greyMd}}>Altro impegno</span></div>}
   </div>);
 }
