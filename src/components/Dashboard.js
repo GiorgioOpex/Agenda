@@ -43,6 +43,40 @@ function calcYTD(entries,consultants,year,upToMonth,upToWeekEnd,planned,target){
   return{actual:totActual,planned:totPlanned,target:totTarget};
 }
 
+function CumulativeChart(p){
+  var months=p.months,target=p.target,planned=p.planned,cM=p.cM,year=p.year;
+  var cumT=[],cumP=[],cumA=[],ct=0,cp=0,ca=0;
+  for(var i=0;i<12;i++){ct+=target;cp+=planned;ca+=months[i].actual;cumT.push(ct);cumP.push(cp);cumA.push(ca);}
+  var maxC=Math.max(cumT[11]||1,cumP[11]||1,cumA[cM]||1);
+  var W=680,H=200,pL=45,pR=10,pT=10,pB=30,gW=W-pL-pR,gH=H-pT-pB;
+  function xP(i){return pL+i*(gW/11);}
+  function yP(v){return pT+gH-((v/maxC)*gH);}
+  function pts(arr,upTo){var r=[];for(var i=0;i<=upTo;i++)r.push(xP(i)+","+yP(arr[i]));return r.join(" ");}
+  var gridEls=[];var steps=5;
+  for(var g=0;g<=steps;g++){var gy=pT+(gH/steps)*g;var gv=Math.round(maxC-((maxC/steps)*g));
+    gridEls.push(<line key={"gl"+g} x1={pL} y1={gy} x2={W-pR} y2={gy} stroke="#eee" strokeWidth={1}/>);
+    gridEls.push(<text key={"gt"+g} x={pL-6} y={gy+4} textAnchor="end" fontSize={9} fill="#999">{fmtNum(gv)}</text>);}
+  var lbls=[];for(var j=0;j<12;j++)lbls.push(<text key={"lb"+j} x={xP(j)} y={H-8} textAnchor="middle" fontSize={9} fill={j===cM?CL.red:"#999"} fontWeight={j===cM?700:400}>{MESI[j].substring(0,3)}</text>);
+  var dotsA=[];for(var k=0;k<=cM;k++)dotsA.push(<circle key={"da"+k} cx={xP(k)} cy={yP(cumA[k])} r={3} fill={CL.grey}/>);
+  return(
+    <div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #eee",marginBottom:16}}>
+      <h4 style={{margin:"0 0 16px",color:CL.greyDk,fontSize:14}}>Progressivo cumulato {year}</h4>
+      <div style={{display:"flex",gap:16,marginBottom:12,fontSize:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:20,height:3,background:CL.red,borderRadius:2}}/><span>Target</span></div>
+        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:20,height:3,background:"#2E7D32",borderRadius:2}}/><span>Previste</span></div>
+        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:20,height:3,background:CL.grey,borderRadius:2}}/><span>Effettive</span></div></div>
+      <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:"auto",maxHeight:220}}>
+        {gridEls}{lbls}
+        <polyline points={pts(cumT,11)} fill="none" stroke={CL.red} strokeWidth={2.5} strokeDasharray="6,4" strokeLinecap="round" strokeLinejoin="round"/>
+        <polyline points={pts(cumP,11)} fill="none" stroke="#2E7D32" strokeWidth={2.5} strokeDasharray="6,4" strokeLinecap="round" strokeLinejoin="round"/>
+        <polyline points={pts(cumA,cM)} fill="none" stroke={CL.grey} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>
+        {dotsA}
+        <circle cx={xP(cM)} cy={yP(cumA[cM])} r={5} fill={CL.grey} stroke="#fff" strokeWidth={2}/>
+      </svg>
+      <p style={{marginTop:8,fontSize:11,color:"#aaa"}}>Tratteggiate = proiezione annuale. Continua = effettivo fino a {MESI[cM]}</p>
+    </div>);
+}
+
 export function Dashboard(p){
   var data=p.data,year=p.year,target=data.targetMensile||0;
   var planned=(data.clients||[]).reduce(function(s,c){return s+((data.clientBudgets||{})[c]||0);},0);
@@ -103,41 +137,7 @@ export function Dashboard(p){
           <div style={{fontSize:10,color:i===cM?CL.red:"#888",fontWeight:i===cM?700:400,marginTop:4}}>{m.nome}</div></div>);})}</div>
         <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Mesi futuri in trasparenza</p>
       </div>
-      <div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #eee",marginBottom:16}}>
-        <h4 style={{margin:"0 0 16px",color:CL.greyDk,fontSize:14}}>Progressivo cumulato {year}</h4>
-        <div style={{display:"flex",gap:16,marginBottom:12,fontSize:12}}>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:20,height:3,background:CL.red,borderRadius:2}}/><span>Target</span></div>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:20,height:3,background:"#2E7D32",borderRadius:2}}/><span>Previste</span></div>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:20,height:3,background:CL.grey,borderRadius:2}}/><span>Effettive</span></div></div>
-        {function(){
-          var cumT=[],cumP=[],cumA=[],ct=0,cp=0,ca=0;
-          for(var i=0;i<12;i++){ct+=target;cp+=planned;ca+=months[i].actual;cumT.push(ct);cumP.push(cp);cumA.push(ca);}
-          var maxC=Math.max(cumT[11],cumP[11],cumA[cM])||1;
-          var W=680,H=200,padL=45,padR=10,padT=10,padB=30;
-          var gW=W-padL-padR,gH=H-padT-padB;
-          function xPos(i){return padL+i*(gW/11);}
-          function yPos(v){return padT+gH-((v/maxC)*gH);}
-          function makeLine(arr,color,dashed,upTo){
-            var pts=[];for(var i=0;i<=upTo;i++)pts.push(xPos(i)+","+yPos(arr[i]));
-            return React.createElement("polyline",{key:color+upTo,points:pts.join(" "),fill:"none",stroke:color,strokeWidth:2.5,strokeDasharray:dashed?"6,4":"none",strokeLinecap:"round",strokeLinejoin:"round"});}
-          function makeDots(arr,color,upTo){
-            var dots=[];for(var i=0;i<=upTo;i++)dots.push(React.createElement("circle",{key:color+"d"+i,cx:xPos(i),cy:yPos(arr[i]),r:3,fill:color}));return dots;}
-          var gridLines=[];var steps=5;
-          for(var g=0;g<=steps;g++){var gy=padT+(gH/steps)*g;var gv=Math.round(maxC-((maxC/steps)*g));
-            gridLines.push(React.createElement("line",{key:"gl"+g,x1:padL,y1:gy,x2:W-padR,y2:gy,stroke:"#eee",strokeWidth:1}));
-            gridLines.push(React.createElement("text",{key:"gt"+g,x:padL-6,y:gy+4,textAnchor:"end",fontSize:9,fill:"#999"},fmtNum(gv)));}
-          var labels=[];for(var j=0;j<12;j++)labels.push(React.createElement("text",{key:"lb"+j,x:xPos(j),y:H-8,textAnchor:"middle",fontSize:9,fill:j===cM?CL.red:"#999",fontWeight:j===cM?700:400},MESI[j].substring(0,3)));
-          return React.createElement("svg",{viewBox:"0 0 "+W+" "+H,style:{width:"100%",height:"auto",maxHeight:220}},
-            gridLines,labels,
-            makeLine(cumT,CL.red,true,11),
-            makeLine(cumP,"#2E7D32",true,11),
-            makeLine(cumA,CL.grey,false,cM),
-            makeDots(cumA,CL.grey,cM),
-            React.createElement("circle",{cx:xPos(cM),cy:yPos(cumA[cM]),r:5,fill:CL.grey,stroke:"#fff",strokeWidth:2})
-          );
-        }()}
-        <p style={{marginTop:8,fontSize:11,color:"#aaa"}}>Linee tratteggiate = proiezione annuale. Linea continua = effettivo fino a {MESI[cM]}</p>
-      </div>
+      <CumulativeChart months={months} target={target} planned={planned} cM={cM} year={year}/>
       <div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #eee"}}>
         <h4 style={{margin:"0 0 12px",color:CL.greyDk,fontSize:14}}>Situazione YTD (da Gennaio a {MESI[cM]})</h4>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12}}>
