@@ -3,7 +3,7 @@ import { useState } from "react";
 import { MESI, CL, STATI, FONT, sI, sB, sO, parseKey } from "./shared";
 
 function HalfEditor(p){
-  var opts=[{k:"",l:"Libero"},{k:"client",l:"Cliente OPEX"},{k:"busy",l:"Altro impegno"}];
+  var opts=[{k:"",l:"Libero"},{k:"client",l:"Cliente OPEX"},{k:"commercial",l:"Commerciale OPEX"},{k:"busy",l:"Altro impegno"}];
   return(<div style={{marginBottom:12}}>
     <h4 style={{margin:"0 0 8px",fontSize:14,color:CL.greyDk,fontWeight:700}}>{p.label}</h4>
     <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>{opts.map(function(o){return<button key={o.k} onClick={function(){p.setStatus(o.k);}} style={{padding:"6px 11px",borderRadius:8,fontSize:12,fontWeight:p.status===o.k?700:400,border:p.status===o.k?"2px solid "+CL.red:"1px solid #ddd",cursor:"pointer",fontFamily:FONT,background:p.status===o.k&&o.k?STATI[o.k].bg:"#f9f9f9",color:p.status===o.k&&o.k?STATI[o.k].text:"#555"}}>{o.l}</button>;})}</div>
