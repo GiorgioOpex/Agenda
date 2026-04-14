@@ -22,6 +22,15 @@ export function getHalfBg(half,clients){
   if(half.status==="client"&&half.client)return getClientColor(clients,half.client);
   return CL.red;}
 
+export function getInitials(half){
+  if(!half||!half.status)return "";
+  if(half.status==="busy")return "AI";
+  if(half.status==="client"&&half.client){
+    var words=half.client.trim().split(/\s+/);
+    if(words.length>=2)return (words[0][0]+words[1][0]).toUpperCase();
+    return half.client.substring(0,2).toUpperCase();}
+  return "";}
+
 export function getUsedClients(entries){
   var used={};if(!entries)return[];
   Object.keys(entries).forEach(function(key){var e=entries[key];if(!e)return;

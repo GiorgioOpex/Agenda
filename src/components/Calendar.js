@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { GIORNI, CL, FONT, makeKey, daysInMonth, firstDow, getHalfBg } from "./shared";
+import { GIORNI, CL, FONT, makeKey, daysInMonth, firstDow, getHalfBg, getInitials } from "./shared";
 
 export function Calendar(p){
   var year=p.year,month=p.month,entries=p.entries,clients=p.clients||[],oDC=p.onDayClick,onDrop=p.onDrop;
@@ -74,8 +74,8 @@ export function Calendar(p){
           border:isDragTgt?"2px dashed #F0C040":isT?"2px solid "+CL.red:"1px solid #e8e8e8",
           background:isDragSrc?"#FFE0B2":isDragTgt?"#FFF8E1":we?"#f0f0f0":canBeTarget?"#FFFDE7":isBlocked?"#f8f8f8":"#fafafa",
           transition:"all .15s",userSelect:"none",opacity:isDragSrc?0.5:isBlocked?0.4:1}}>
-        {has&&!we&&!isDragSrc&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column"}}><div style={{flex:1,background:amBg,opacity:.88}}/><div style={{flex:1,background:pmBg,opacity:.88}}/></div>}
-        <span style={{position:"relative",zIndex:1,fontSize:13,fontWeight:isT?700:500,color:has&&!we&&!isDragSrc?"#fff":we?"#bbb":"#444",textShadow:has&&!we&&!isDragSrc?"0 1px 2px rgba(0,0,0,.3)":"none"}}>{d}</span>
+        {has&&!we&&!isDragSrc&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column"}}><div style={{flex:1,background:amBg,opacity:.88,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:7,fontWeight:700,color:"#fff",textShadow:"0 1px 2px rgba(0,0,0,.4)",letterSpacing:.5}}>{getInitials(en&&en.am?en.am:null)}</span></div><div style={{flex:1,background:pmBg,opacity:.88,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:7,fontWeight:700,color:"#fff",textShadow:"0 1px 2px rgba(0,0,0,.4)",letterSpacing:.5}}>{getInitials(en&&en.pm?en.pm:null)}</span></div></div>}
+        <span style={{position:"relative",zIndex:1,fontSize:has&&!we&&!isDragSrc?10:13,fontWeight:isT?700:500,color:has&&!we&&!isDragSrc?"#fff":we?"#bbb":"#444",textShadow:has&&!we&&!isDragSrc?"0 1px 2px rgba(0,0,0,.3)":"none"}}>{d}</span>
       </div>);})}</div>
 
     {menu&&<div style={{position:"fixed",inset:0,zIndex:999}} onClick={function(){sMenu(null);}}>
