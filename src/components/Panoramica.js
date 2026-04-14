@@ -22,14 +22,14 @@ export function Panoramica(p){
       {usedList.map(function(c){return<div key={c} style={{display:"flex",alignItems:"center",gap:4}}>
         <div style={{width:13,height:13,borderRadius:4,background:getClientColor(clients,c)}}/><span style={{fontSize:11,color:CL.greyMd}}>{c}</span></div>;})}
       {hasBusy&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:CL.grey}}/><span style={{fontSize:11,color:CL.greyMd}}>Altro impegno</span></div>}
-      {hasComm&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#1565C0"}}/><span style={{fontSize:11,color:CL.greyMd}}>Commerciale OPEX</span></div>}
+      {hasComm&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#FF8F00"}}/><span style={{fontSize:11,color:CL.greyMd}}>Commerciale OPEX</span></div>}
     </div>
     <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:11,fontFamily:FONT}}>
     <thead><tr>
       <th style={{position:"sticky",left:0,background:"#fff",padding:"7px 10px",borderBottom:"2px solid "+CL.red,textAlign:"left",minWidth:110,zIndex:2}}>Consulente</th>
       {Array.from({length:days},function(_,i){var isSun=(fd+i)%7===6;var isSat=(fd+i)%7===5;return<th key={i+1} style={{padding:"5px 2px",borderBottom:"2px solid "+CL.red,textAlign:"center",minWidth:24,color:isSun?"#ccc":isSat?"#bba":CL.greyMd,fontSize:10}}>{i+1}</th>;})}
       <th style={{padding:"7px 5px",borderBottom:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.red,fontSize:11}}>GG Cli</th>
-      <th style={{padding:"7px 5px",borderBottom:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:"#1565C0",fontSize:11}}>Comm.</th>
+      <th style={{padding:"7px 5px",borderBottom:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:"#FF8F00",fontSize:11}}>Comm.</th>
       <th style={{padding:"7px 5px",borderBottom:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:"#2E7D32",fontSize:11}}>Libere</th>
     </tr></thead>
     <tbody>{cons.map(function(name){var cE=entries[name]||{},totCli=0,totBusy=0,totComm=0;
@@ -48,7 +48,7 @@ export function Panoramica(p){
         <td style={{position:"sticky",left:0,background:"#fff",padding:"4px 10px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,fontSize:11,zIndex:1}}>{name}</td>
         {tds}
         <td style={{padding:"4px 5px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.red,fontSize:12}}>{fmtNum(totCli)}</td>
-        <td style={{padding:"4px 5px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:"#1565C0",fontSize:12}}>{totComm?fmtNum(totComm):"-"}</td>
+        <td style={{padding:"4px 5px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:"#FF8F00",fontSize:12}}>{totComm?fmtNum(totComm):"-"}</td>
         <td style={{padding:"4px 5px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:"#2E7D32",fontSize:12}}>{fmtNum(libere)}</td>
       </tr>;})}</tbody></table></div></div>);
 }

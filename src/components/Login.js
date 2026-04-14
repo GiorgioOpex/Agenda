@@ -33,7 +33,7 @@ function FirstAdmin(p){
   var n1=useState(""),n=n1[0],sN=n1[1];var p1=useState(""),pw=p1[0],sP=p1[1];
   var p2=useState(""),pw2=p2[0],sP2=p2[1];var e1=useState(""),e=e1[0],sE=e1[1];var sv=useState(false),saving=sv[0],sSv=sv[1];
   async function go(){if(!n.trim()){sE("Inserisci un nome");return;}if(pw.length<4){sE("Min 4 caratteri");return;}if(pw!==pw2){sE("Non coincidono");return;}
-    sSv(true);var nd=Object.assign({},d,{admins:[{name:n.trim(),passHash:hashPw(pw)}]});var ok=await saveAll(nd);sSv(false);if(ok){oDC(nd);oD(n.trim());}else{sE("Errore salvataggio");}}
+    sSv(true);var nd=Object.assign({},d,{admins:[{name:n.trim().toUpperCase(),passHash:hashPw(pw)}]});var ok=await saveAll(nd);sSv(false);if(ok){oDC(nd);oD(n.trim().toUpperCase());}else{sE("Errore salvataggio");}}
   return(<div>
     <div style={{background:"#FFF3F3",borderRadius:10,padding:"12px 16px",marginBottom:20,borderLeft:"4px solid "+CL.red}}><p style={{margin:0,fontSize:13,color:CL.redDk}}>Crea il primo amministratore.</p></div>
     <input value={n} onChange={function(x){sN(x.target.value);sE("");}} placeholder="Nome" style={Object.assign({},sI,{width:"100%",marginBottom:10})}/>

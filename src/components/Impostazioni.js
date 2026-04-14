@@ -14,7 +14,7 @@ export function Impostazioni(p){
   var tb1=useState("people"),tab=tb1[0],sTab=tb1[1];var sv1=useState(false),saving=sv1[0],sSv=sv1[1];
   var er1=useState(""),saveErr=er1[0],sSaveErr=er1[1];
   function addA(){if(!na.trim()){sAm("Inserisci un nome");return;}if(np.length<4){sAm("Min 4 caratteri");return;}if(np!==np2){sAm("Non coincidono");return;}if(al.find(function(a){return a.name.toLowerCase()===na.trim().toLowerCase();})){sAm("Gia esistente");return;}
-    sAl([].concat(al,[{name:na.trim(),passHash:hashPw(np)}]));sNa("");sNp("");sN2("");sAm("Aggiunto!");setTimeout(function(){sAm("");},2000);}
+    sAl([].concat(al,[{name:na.trim().toUpperCase(),passHash:hashPw(np)}]));sNa("");sNp("");sN2("");sAm("Aggiunto!");setTimeout(function(){sAm("");},2000);}
   function validateClients(){
     for(var i=0;i<ll.length;i++){var c=ll[i];
       if(!bud[c]||bud[c]<=0)return "Il cliente \""+c+"\" non ha le giornate previste/mese";
@@ -32,7 +32,7 @@ export function Impostazioni(p){
       <div style={{display:"flex",gap:4,marginBottom:20,flexWrap:"wrap"}}>{[["people","Consulenti"],["clients","Clienti e Budget"],["target","Target"],["admins","Admin"]].map(function(t){return<button key={t[0]} onClick={function(){sTab(t[0]);sSaveErr("");}} style={{padding:"8px 14px",borderRadius:8,border:"none",fontSize:12,fontWeight:tab===t[0]?700:400,cursor:"pointer",fontFamily:FONT,background:tab===t[0]?CL.red:"#f0f0f0",color:tab===t[0]?"#fff":CL.greyMd}}>{t[1]}</button>;})}</div>
       {tab==="people"&&<div><h4 style={{margin:"0 0 10px",color:CL.red}}>Consulenti</h4>
         {cl.map(function(c,i){return<div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><span style={{flex:1,padding:"6px 10px",background:CL.greyLt,borderRadius:6,fontSize:14}}>{c}</span><button onClick={function(){sCl(cl.filter(function(_,j){return j!==i;}));}} style={{background:"none",border:"none",color:CL.red,cursor:"pointer",fontSize:18}}>x</button></div>;})}
-        <div style={{display:"flex",gap:8,marginTop:6}}><input value={nc} onChange={function(e){sNc(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&nc.trim()){sCl([].concat(cl,[nc.trim()]));sNc("");}}} placeholder="Nuovo consulente..." style={sI}/><button onClick={function(){if(nc.trim()){sCl([].concat(cl,[nc.trim()]));sNc("");}}} style={sB}>+</button></div></div>}
+        <div style={{display:"flex",gap:8,marginTop:6}}><input value={nc} onChange={function(e){sNc(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&nc.trim()){sCl([].concat(cl,[nc.trim().toUpperCase()]));sNc("");}}} placeholder="Nuovo consulente..." style={sI}/><button onClick={function(){if(nc.trim()){sCl([].concat(cl,[nc.trim().toUpperCase()]));sNc("");}}} style={sB}>+</button></div></div>}
       {tab==="clients"&&<div><h4 style={{margin:"0 0 10px",color:CL.red}}>Clienti, giornate/mese e fine contratto</h4>
         {ll.map(function(c,i){return<div key={i} style={{marginBottom:10}}>
           <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
@@ -46,7 +46,7 @@ export function Impostazioni(p){
             {missingEnd(c)&&<span>Inserisci data fine contratto</span>}
           </div>}
         </div>;})}
-        <div style={{display:"flex",gap:8,marginTop:6}}><input value={nl} onChange={function(e){sNl(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&nl.trim()){sLl([].concat(ll,[nl.trim()]));sNl("");}}} placeholder="Nuovo cliente..." style={sI}/><button onClick={function(){if(nl.trim()){sLl([].concat(ll,[nl.trim()]));sNl("");}}} style={sB}>+</button></div>
+        <div style={{display:"flex",gap:8,marginTop:6}}><input value={nl} onChange={function(e){sNl(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&nl.trim()){sLl([].concat(ll,[nl.trim().toUpperCase()]));sNl("");}}} placeholder="Nuovo cliente..." style={sI}/><button onClick={function(){if(nl.trim()){sLl([].concat(ll,[nl.trim().toUpperCase()]));sNl("");}}} style={sB}>+</button></div>
         <div style={{marginTop:12,padding:"10px 14px",background:CL.greyLt,borderRadius:8}}><span style={{fontSize:13,color:CL.greyMd}}>Totale richieste: </span><span style={{fontSize:16,fontWeight:700,color:CL.red}}>{fmtNum(ll.reduce(function(s,c){return s+(bud[c]||0);},0))}</span><span style={{fontSize:12,color:"#888"}}> gg/mese</span></div></div>}
       {tab==="target"&&<div><h4 style={{margin:"0 0 10px",color:CL.red}}>Target mensile OPEX</h4><p style={{fontSize:13,color:CL.greyMd,marginBottom:12}}>Obiettivo giornate fatturabili al mese.</p>
         <div style={{display:"flex",alignItems:"center",gap:10}}><input type="number" min="0" step="1" value={tM||""} onChange={function(e){sTM(parseFloat(e.target.value)||0);}} style={Object.assign({},sI,{flex:"none",width:120,fontSize:20,textAlign:"center",padding:"12px",border:"2px solid "+CL.red,fontWeight:700})}/><span style={{fontSize:14,color:CL.greyMd}}>gg/mese</span></div></div>}
