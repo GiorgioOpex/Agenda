@@ -8,6 +8,11 @@ function getWeeksOfMonth(year,month){
   for(var d=1;d<=days;d++){var dow=(fd+d-1)%7;if(dow===0&&d>1){weeks.push({num:wNum,start:wStart,end:d-1});wNum++;wStart=d;}}
   weeks.push({num:wNum,start:wStart,end:days});return weeks;}
 
+function isoWeek(year,month,day){
+  var dt=new Date(year,month,day);var dayOfYear=Math.floor((dt-new Date(year,0,1))/86400000)+1;
+  var jan1dow=new Date(year,0,1).getDay()||7;
+  var wk=Math.floor((dayOfYear+jan1dow-2)/7)+1;return wk;}
+
 function calcWeekActuals(entries,consultants,year,month,startDay,endDay){
   var fd=firstDow(year,month),tot=0,workHalves=0;
   for(var d=startDay;d<=endDay;d++){if((fd+d-1)%7>=5)continue;workHalves+=2;
@@ -60,15 +65,17 @@ export function Dashboard(p){
   var vs=useState("monthly"),viewMode=vs[0],sViewMode=vs[1];
   var ws=useState(null),selWeek=ws[0],sSelWeek=ws[1];
   var sms=useState(null),selMonth=sms[0],sSelMonth=sms[1];
+  var wms=useState(cM),wMo=wms[0],sWMo=wms[1];
 
   var months=useMemo(function(){return MESI.map(function(nome,mi){var a=calcMonthActuals(data.entries,data.consultants,year,mi);return{nome:nome.substring(0,3),actual:a.totalClient,planned:planned,target:target,byClient:a.byClient};});},[data,year,target,planned]);
 
-  var weeks=useMemo(function(){var wks=getWeeksOfMonth(year,cM);return wks.map(function(w){var wa=calcWeekActuals(data.entries,data.consultants,year,cM,w.start,w.end);
+  var weeks=useMemo(function(){var wks=getWeeksOfMonth(year,wMo);return wks.map(function(w){var wa=calcWeekActuals(data.entries,data.consultants,year,wMo,w.start,w.end);
     var pR=wa.workDays>0?planned*(wa.workDays/20):0;var tR=wa.workDays>0?target*(wa.workDays/20):0;
-    return{num:w.num,start:w.start,end:w.end,actual:wa.actual,planned:pR,target:tR,workDays:wa.workDays};});},[data,year,cM,planned,target]);
+    var iw=isoWeek(year,wMo,w.start);
+    return{num:w.num,start:w.start,end:w.end,actual:wa.actual,planned:pR,target:tR,workDays:wa.workDays,isoW:iw};});},[data,year,wMo,planned,target]);
 
   var ytdData=useMemo(function(){if(selWeek===null)return null;var w=weeks[selWeek];if(!w)return null;
-    return calcYTD(data.entries,data.consultants,year,cM,w.end,planned,target);},[selWeek,data,year,cM,weeks,planned,target]);
+    return calcYTD(data.entries,data.consultants,year,wMo,w.end,planned,target);},[selWeek,data,year,wMo,weeks,planned,target]);
 
   var mxM=Math.max(target,planned,Math.max.apply(null,months.map(function(m){return m.actual;})))||1;
   var mxW=weeks.length>0?Math.max(Math.max.apply(null,weeks.map(function(w){return Math.max(w.actual,w.planned,w.target);})),1):1;
@@ -129,31 +136,35 @@ export function Dashboard(p){
       </div>}
 
     {viewMode==="weekly"&&<div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",marginBottom:16,gap:12}}>
+        <button onClick={function(){sSelWeek(null);sWMo(wMo===0?11:wMo-1);}} style={{background:"#fff",border:"1px solid #ddd",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:18}}>&#8249;</button>
+        <h2 style={{margin:0,fontSize:18,color:CL.greyDk,minWidth:180,textAlign:"center"}}>{MESI[wMo]} {year}</h2>
+        <button onClick={function(){sSelWeek(null);sWMo(wMo===11?0:wMo+1);}} style={{background:"#fff",border:"1px solid #ddd",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:18}}>&#8250;</button>
+      </div>
       <div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #eee",marginBottom:16}}>
-        <h4 style={{margin:"0 0 16px",color:CL.greyDk,fontSize:14}}>Settimane di {MESI[cM]} {year}</h4>
         <div style={{display:"flex",gap:16,marginBottom:16,fontSize:12}}>
           <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:12,height:12,background:CL.red,borderRadius:2}}/><span>Target</span></div>
           <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:12,height:12,background:"#2E7D32",borderRadius:2}}/><span>Previste</span></div>
           <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:12,height:12,background:CL.grey,borderRadius:2}}/><span>Effettive</span></div></div>
-        <div style={{display:"flex",alignItems:"flex-end",gap:8,height:210,overflowX:"auto"}}>{weeks.map(function(w,i){return(<div key={w.num} onClick={function(){sSelWeek(selWeek===i?null:i);}} style={{flex:1,minWidth:70,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",padding:"4px",borderRadius:8,background:selWeek===i?"#FFF8F0":"transparent",border:selWeek===i?"1px solid #F0C040":"1px solid transparent"}}>
+        <div style={{display:"flex",alignItems:"flex-end",gap:8,height:210,overflowX:"auto"}}>{weeks.map(function(w,i){var yr2=String(year).substring(2);return(<div key={w.num} onClick={function(){sSelWeek(selWeek===i?null:i);}} style={{flex:1,minWidth:70,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",padding:"4px",borderRadius:8,background:selWeek===i?"#FFF8F0":"transparent",border:selWeek===i?"1px solid #F0C040":"1px solid transparent"}}>
           <div style={{display:"flex",gap:3,alignItems:"flex-end",height:170}}>
             <div style={{width:14,height:Math.max(2,(w.target/mxW)*170),background:CL.red,borderRadius:"2px 2px 0 0"}}/>
             <div style={{width:14,height:Math.max(2,(w.planned/mxW)*170),background:"#2E7D32",borderRadius:"2px 2px 0 0"}}/>
             <div style={{width:14,height:Math.max(2,(w.actual/mxW)*170),background:CL.grey,borderRadius:"2px 2px 0 0"}}/></div>
-          <div style={{fontSize:11,color:selWeek===i?CL.red:CL.greyMd,fontWeight:selWeek===i?700:400,marginTop:6}}>S{w.num}</div>
+          <div style={{fontSize:11,color:selWeek===i?CL.red:CL.greyMd,fontWeight:selWeek===i?700:400,marginTop:6}}>{w.isoW+"/"+yr2}</div>
           <div style={{fontSize:9,color:"#aaa"}}>{w.start}-{w.end}</div></div>);})}</div>
         <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Clicca su una settimana per la situazione YTD</p></div>
       <div style={{overflowX:"auto",marginBottom:16}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
         <thead><tr style={{background:"#FFF8F8"}}><th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Settimana</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>GG lav.</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Target</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Previste</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Effettive</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Delta</th></tr></thead>
-        <tbody>{weeks.map(function(w,i){var delta=w.actual-w.target;return(<tr key={w.num} onClick={function(){sSelWeek(selWeek===i?null:i);}} style={{cursor:"pointer",background:selWeek===i?"#FFF8F0":"transparent"}}>
-          <td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>Sett. {w.num} ({w.start}-{w.end} {MESI[cM].substring(0,3)})</td>
+        <tbody>{weeks.map(function(w,i){var delta=w.actual-w.target;var yr2=String(year).substring(2);return(<tr key={w.num} onClick={function(){sSelWeek(selWeek===i?null:i);}} style={{cursor:"pointer",background:selWeek===i?"#FFF8F0":"transparent"}}>
+          <td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>Sett. {w.isoW}/{yr2} ({w.start}-{w.end} {MESI[wMo].substring(0,3)})</td>
           <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center"}}>{fmtNum(w.workDays)}</td>
           <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:CL.red,fontWeight:600}}>{fmtNum(w.target)}</td>
           <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:"#2E7D32",fontWeight:600}}>{fmtNum(w.planned)}</td>
           <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.greyDk}}>{fmtNum(w.actual)}</td>
           <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:delta>=0?"#2E7D32":CL.red}}>{(delta>=0?"+":"")+fmtNum(delta)}</td></tr>);})}</tbody></table></div>
       {ytdData&&<div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #F0C040"}}>
-        <h4 style={{margin:"0 0 12px",color:CL.greyDk,fontSize:14}}>YTD fino a Sett. {weeks[selWeek].num} ({weeks[selWeek].end} {MESI[cM]})</h4>
+        <h4 style={{margin:"0 0 12px",color:CL.greyDk,fontSize:14}}>YTD fino a Sett. {weeks[selWeek].isoW}/{String(year).substring(2)} ({weeks[selWeek].end} {MESI[wMo]})</h4>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12}}>
           <div style={{padding:"12px 16px",background:"#FFF3F3",borderRadius:10,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Target YTD</div><div style={{fontSize:22,fontWeight:700,color:CL.red}}>{fmtNum(ytdData.target)}</div></div>
           <div style={{padding:"12px 16px",background:"#E8F5E9",borderRadius:10,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Previste YTD</div><div style={{fontSize:22,fontWeight:700,color:"#2E7D32"}}>{fmtNum(ytdData.planned)}</div></div>
