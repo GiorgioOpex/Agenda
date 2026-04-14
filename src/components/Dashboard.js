@@ -80,20 +80,19 @@ export function Dashboard(p){
       <button onClick={function(){sViewMode("monthly");sSelWeek(null);sSelMonth(null);}} style={{padding:"8px 18px",borderRadius:8,border:"none",fontSize:13,fontWeight:viewMode==="monthly"?700:400,cursor:"pointer",fontFamily:FONT,background:viewMode==="monthly"?CL.red:"#f0f0f0",color:viewMode==="monthly"?"#fff":CL.greyMd}}>Mensile</button>
       <button onClick={function(){sViewMode("weekly");sSelWeek(null);sSelMonth(null);}} style={{padding:"8px 18px",borderRadius:8,border:"none",fontSize:13,fontWeight:viewMode==="weekly"?700:400,cursor:"pointer",fontFamily:FONT,background:viewMode==="weekly"?CL.red:"#f0f0f0",color:viewMode==="weekly"?"#fff":CL.greyMd}}>Settimanale</button></div>
 
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12,marginBottom:24}}>
-      <div style={{padding:"14px 18px",background:"#FFF3F3",borderRadius:12,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Target mensile</div><div style={{fontSize:28,fontWeight:700,color:CL.red}}>{fmtNum(target)}</div><div style={{fontSize:11,color:"#888"}}>giornate</div></div>
-      <div style={{padding:"14px 18px",background:"#E8F5E9",borderRadius:12,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Richieste clienti</div><div style={{fontSize:28,fontWeight:700,color:"#2E7D32"}}>{fmtNum(planned)}</div><div style={{fontSize:11,color:"#888"}}>gg/mese</div></div>
-      <div style={{padding:"14px 18px",background:CL.greyLt,borderRadius:12,border:"1px solid #ddd"}}><div style={{fontSize:11,color:CL.greyMd}}>Effettive {MESI[cM]}</div><div style={{fontSize:28,fontWeight:700,color:CL.greyDk}}>{fmtNum(months[cM].actual)}</div></div>
-      <div style={{padding:"14px 18px",background:months[cM].actual>=target?"#E8F5E9":"#FFF3F3",borderRadius:12,border:"1px solid "+(months[cM].actual>=target?"#A5D6A7":CL.red)}}><div style={{fontSize:11,color:CL.greyMd}}>vs Target mese</div><div style={{fontSize:28,fontWeight:700,color:months[cM].actual>=target?"#2E7D32":CL.red}}>{target>0?Math.round((months[cM].actual/target)*100):0}%</div></div></div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12,marginBottom:20}}>
+      <div style={{padding:"12px 16px",background:"#FFF3F3",borderRadius:10,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Target YTD</div><div style={{fontSize:22,fontWeight:700,color:CL.red}}>{fmtNum(ytdTarget)}</div></div>
+      <div style={{padding:"12px 16px",background:"#E8F5E9",borderRadius:10,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Previste YTD</div><div style={{fontSize:22,fontWeight:700,color:"#2E7D32"}}>{fmtNum(ytdPlanned)}</div></div>
+      <div style={{padding:"12px 16px",background:CL.greyLt,borderRadius:10,border:"1px solid #ddd"}}><div style={{fontSize:11,color:CL.greyMd}}>Effettive YTD</div><div style={{fontSize:22,fontWeight:700,color:CL.greyDk}}>{fmtNum(ytdActual)}</div></div>
+      <div style={{padding:"12px 16px",background:ytdActual>=ytdTarget?"#E8F5E9":"#FFF3F3",borderRadius:10,border:"1px solid "+(ytdActual>=ytdTarget?"#A5D6A7":CL.red)}}><div style={{fontSize:11,color:CL.greyMd}}>Raggiungimento YTD</div><div style={{fontSize:22,fontWeight:700,color:ytdActual>=ytdTarget?"#2E7D32":CL.red}}>{ytdTarget>0?Math.round((ytdActual/ytdTarget)*100):0}%</div></div></div>
 
     {viewMode==="monthly"&&<div>
-      <div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #eee",marginBottom:16}}>
-        <h4 style={{margin:"0 0 12px",color:CL.greyDk,fontSize:14}}>Situazione YTD (Gennaio - {MESI[cM]})</h4>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12}}>
-          <div style={{padding:"12px 16px",background:"#FFF3F3",borderRadius:10,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Target YTD</div><div style={{fontSize:22,fontWeight:700,color:CL.red}}>{fmtNum(ytdTarget)}</div></div>
-          <div style={{padding:"12px 16px",background:"#E8F5E9",borderRadius:10,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Previste YTD</div><div style={{fontSize:22,fontWeight:700,color:"#2E7D32"}}>{fmtNum(ytdPlanned)}</div></div>
-          <div style={{padding:"12px 16px",background:CL.greyLt,borderRadius:10,border:"1px solid #ddd"}}><div style={{fontSize:11,color:CL.greyMd}}>Effettive YTD</div><div style={{fontSize:22,fontWeight:700,color:CL.greyDk}}>{fmtNum(ytdActual)}</div></div>
-          <div style={{padding:"12px 16px",background:ytdActual>=ytdTarget?"#E8F5E9":"#FFF3F3",borderRadius:10,border:"1px solid "+(ytdActual>=ytdTarget?"#A5D6A7":CL.red)}}><div style={{fontSize:11,color:CL.greyMd}}>Raggiungimento</div><div style={{fontSize:22,fontWeight:700,color:ytdActual>=ytdTarget?"#2E7D32":CL.red}}>{ytdTarget>0?Math.round((ytdActual/ytdTarget)*100):0}%</div></div></div></div>
+      {function(){var mi=selMonth!==null?selMonth:cM;var m=months[mi];var lbl=selMonth!==null?MESI[selMonth]:MESI[cM];
+        return<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12,marginBottom:20}}>
+          <div style={{padding:"14px 18px",background:"#FFF3F3",borderRadius:12,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Target {lbl}</div><div style={{fontSize:28,fontWeight:700,color:CL.red}}>{fmtNum(target)}</div></div>
+          <div style={{padding:"14px 18px",background:"#E8F5E9",borderRadius:12,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Richieste {lbl}</div><div style={{fontSize:28,fontWeight:700,color:"#2E7D32"}}>{fmtNum(planned)}</div></div>
+          <div style={{padding:"14px 18px",background:CL.greyLt,borderRadius:12,border:"1px solid #ddd"}}><div style={{fontSize:11,color:CL.greyMd}}>Effettive {lbl}</div><div style={{fontSize:28,fontWeight:700,color:CL.greyDk}}>{fmtNum(m.actual)}</div></div>
+          <div style={{padding:"14px 18px",background:m.actual>=target?"#E8F5E9":"#FFF3F3",borderRadius:12,border:"1px solid "+(m.actual>=target?"#A5D6A7":CL.red)}}><div style={{fontSize:11,color:CL.greyMd}}>vs Target</div><div style={{fontSize:28,fontWeight:700,color:m.actual>=target?"#2E7D32":CL.red}}>{target>0?Math.round((m.actual/target)*100):0}%</div></div></div>;}()}
       <div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #eee",marginBottom:16}}>
         <h4 style={{margin:"0 0 16px",color:CL.greyDk,fontSize:14}}>Andamento mensile {year}</h4>
         <div style={{display:"flex",gap:16,marginBottom:16,fontSize:12}}>
@@ -106,19 +105,25 @@ export function Dashboard(p){
             <div style={{width:10,height:Math.max(2,(m.planned/mxM)*180),background:"#2E7D32",borderRadius:"2px 2px 0 0"}}/>
             <div style={{width:10,height:Math.max(2,(m.actual/mxM)*180),background:CL.grey,borderRadius:"2px 2px 0 0"}}/></div>
           <div style={{fontSize:10,color:i===cM?CL.red:selMonth===i?"#FF8F00":"#888",fontWeight:i===cM||selMonth===i?700:400,marginTop:4}}>{m.nome}</div></div>);})}</div>
-        <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Clicca su un mese per il dettaglio consuntivo</p></div>
-      {selMonth!==null&&selMonth<=cM&&<div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #F0C040",marginBottom:16}}>
-        <h4 style={{margin:"0 0 12px",color:CL.greyDk,fontSize:14}}>Dettaglio {MESI[selMonth]} {year}</h4>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:12}}>
-          <div style={{padding:"10px 14px",background:"#FFF3F3",borderRadius:8}}><div style={{fontSize:11,color:CL.greyMd}}>Target</div><div style={{fontSize:20,fontWeight:700,color:CL.red}}>{fmtNum(target)}</div></div>
-          <div style={{padding:"10px 14px",background:"#E8F5E9",borderRadius:8}}><div style={{fontSize:11,color:CL.greyMd}}>Previste</div><div style={{fontSize:20,fontWeight:700,color:"#2E7D32"}}>{fmtNum(planned)}</div></div>
-          <div style={{padding:"10px 14px",background:CL.greyLt,borderRadius:8}}><div style={{fontSize:11,color:CL.greyMd}}>Effettive</div><div style={{fontSize:20,fontWeight:700,color:CL.greyDk}}>{fmtNum(months[selMonth].actual)}</div></div>
-          <div style={{padding:"10px 14px",background:months[selMonth].actual>=target?"#E8F5E9":"#FFF3F3",borderRadius:8}}><div style={{fontSize:11,color:CL.greyMd}}>Delta</div><div style={{fontSize:20,fontWeight:700,color:months[selMonth].actual>=target?"#2E7D32":CL.red}}>{(months[selMonth].actual-target>=0?"+":"")+fmtNum(months[selMonth].actual-target)}</div></div></div>
-        {(data.clients||[]).length>0&&<div><div style={{fontSize:12,fontWeight:600,color:CL.greyMd,marginBottom:6}}>Per cliente:</div>
-          {(data.clients||[]).map(function(c){var eff=months[selMonth].byClient[c]||0;var bud=(data.clientBudgets||{})[c]||0;
-            return<div key={c} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid #f0f0f0",fontSize:12}}>
-              <span style={{color:CL.greyDk}}>{c}</span><span><span style={{color:CL.greyMd}}>prev {fmtNum(bud)}</span> <span style={{fontWeight:700,color:eff>=bud?"#2E7D32":CL.red}}>{fmtNum(eff)}</span></span></div>;})}</div>}
-      </div>}
+        <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Clicca su un mese per il dettaglio</p></div>
+      {selMonth!==null&&selMonth<=cM&&(data.clients||[]).length>0&&<div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #F0C040",marginBottom:16}}>
+        <h4 style={{margin:"0 0 12px",color:CL.greyDk,fontSize:14}}>Dettaglio per cliente — {MESI[selMonth]} {year}</h4>
+        <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
+          <thead><tr style={{background:"#FFF8F8"}}>
+            <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Cliente</th>
+            <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>Previste</th>
+            <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>Effettive</th>
+            <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>Delta</th></tr></thead>
+          <tbody>{(data.clients||[]).map(function(c){var eff=months[selMonth].byClient[c]||0;var bud=(data.clientBudgets||{})[c]||0;var diff=eff-bud;
+            return<tr key={c}><td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>{c}</td>
+              <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center"}}>{fmtNum(bud)}</td>
+              <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.red}}>{fmtNum(eff)}</td>
+              <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:diff>=0?"#2E7D32":CL.red}}>{(diff>=0?"+":"")+fmtNum(diff)}</td></tr>;})}
+          <tr style={{background:"#FFF8F8"}}><td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700,color:CL.greyDk}}>TOTALE</td>
+            <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700}}>{fmtNum(planned)}</td>
+            <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.red}}>{fmtNum(months[selMonth].actual)}</td>
+            <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:months[selMonth].actual-planned>=0?"#2E7D32":CL.red}}>{(months[selMonth].actual-planned>=0?"+":"")+fmtNum(months[selMonth].actual-planned)}</td></tr>
+        </tbody></table></div></div>}
       <CumulativeChart months={months} target={target} planned={planned} cM={cM} year={year}/></div>}
 
     {viewMode==="weekly"&&<div>
