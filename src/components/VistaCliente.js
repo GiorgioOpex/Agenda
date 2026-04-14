@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcAllActuals, calcContractTotal } from "./shared";
+import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcAllActuals, calcContractTotal, makeKey, daysInMonth } from "./shared";
 
 export function VistaCliente(p){
   var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month;
@@ -52,5 +52,24 @@ export function VistaCliente(p){
         <div><div style={{fontSize:11,color:CL.greyMd}}>Rimanenti</div><div style={{fontSize:20,fontWeight:700,color:cRem<0?CL.red:"#2E7D32"}}>{fmtNum(cRem)}</div></div>
         <div><div style={{fontSize:11,color:CL.greyMd}}>Avanzamento</div><div style={{fontSize:20,fontWeight:700,color:eTot>=ct?"#2E7D32":CL.red}}>{Math.round((eTot/ct)*100)}%</div></div></div>
       <div style={{marginTop:10}}><div style={{height:10,background:CL.greyLt,borderRadius:5,overflow:"hidden"}}><div style={{height:"100%",width:Math.min(100,(eTot/ct)*100)+"%",background:eTot>=ct?"#2E7D32":"#F0C040",borderRadius:5}}/></div></div></div>}
-    <p style={{fontSize:11,color:"#aaa"}}>Valori in giornate (0.5 = mezza giornata)</p></div>);
+    {function(){var dayRows=[];
+      cons.forEach(function(n){var cE=entries[n]||{};
+        for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
+          var halves=[];["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client"&&x.client===sel)halves.push(h);});
+          if(halves.length>0)dayRows.push({day:d,name:n,presenza:halves.length===2?"Intera giornata":halves[0]==="am"?"Mattina":"Pomeriggio"});}});
+      dayRows.sort(function(a,b){return a.day===b.day?a.name.localeCompare(b.name):a.day-b.day;});
+      if(dayRows.length===0)return null;
+      return(<div style={{marginTop:20}}>
+        <h4 style={{margin:"0 0 10px",color:CL.greyDk,fontSize:14}}>Dettaglio giornaliero</h4>
+        <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
+          <thead><tr style={{background:"#FFF8F8"}}>
+            <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Data</th>
+            <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Presenza</th>
+            <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Consulente</th></tr></thead>
+          <tbody>{dayRows.map(function(r,i){return<tr key={i}>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk}}>{r.day} {MESI[month].substring(0,3)}</td>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",color:CL.greyMd}}>{r.presenza}</td>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.red}}>{r.name}</td></tr>;})}</tbody>
+        </table></div></div>);}()}
+    <p style={{fontSize:11,color:"#aaa",marginTop:16}}>Valori in giornate (0.5 = mezza giornata)</p></div>);
 }
