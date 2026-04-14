@@ -50,7 +50,7 @@ export default function App(){
         <button onClick={nM} style={{background:"#fff",border:"1px solid #ddd",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:18}}>&#8250;</button></div>}
       {view!=="dashboard"&&!isAdm&&<Legenda clients={data.clients} entries={data.entries[user]||{}}/>}
       {!isAdm&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><Calendar year={yr} month={mo} entries={data.entries[user]||{}} clients={data.clients} onDayClick={sED} onDrop={hMV}/></div>}
-      {!isAdm&&!showReport&&<div style={{textAlign:"center",marginTop:16}}><button onClick={function(){sShowReport(true);}} style={{padding:"10px 24px",borderRadius:8,border:"1px solid "+CL.red,background:"#fff",color:CL.red,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Genera Report {MESI[mo]} {yr}</button></div>}
+      {!isAdm&&!showReport&&(yr<new Date().getFullYear()||(yr===new Date().getFullYear()&&mo<=new Date().getMonth()))&&<div style={{textAlign:"center",marginTop:16}}><button onClick={function(){sShowReport(true);}} style={{padding:"10px 24px",borderRadius:8,border:"1px solid "+CL.red,background:"#fff",color:CL.red,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Genera Report {MESI[mo]} {yr}</button></div>}
       {!isAdm&&showReport&&function(){
         var cE=data.entries[user]||{};var dayRows=[];
         for(var d=1;d<=daysInMonth(yr,mo);d++){var e=cE[makeKey(yr,mo,d)];if(!e)continue;
