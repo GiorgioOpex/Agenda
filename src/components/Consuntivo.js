@@ -111,7 +111,30 @@ function ConsDetail(p){
       <tr style={{background:"#FFF8F8"}}><td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700}}>TOTALE CLIENTE</td>
         <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.red,fontSize:15}}>{fmtNum(totCli)}</td>
         <td style={{borderTop:"2px solid "+CL.red}}/></tr>
-    </tbody></table></div></div>);
+    </tbody></table></div>
+    {function(){var allDays=[];
+      for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
+        ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
+          var lbl=x.status==="client"&&x.client?x.client:x.status==="commercial"?"COMMERCIALE OPEX":x.status==="busy"?"ALTRO IMPEGNO":"";
+          var clr=x.status==="client"?CL.red:x.status==="commercial"?"#FF8F00":CL.grey;
+          allDays.push({day:d,half:h,label:lbl,color:clr,status:x.status});});}
+      var grouped={};allDays.forEach(function(it){var k=it.day+"|"+it.label;if(!grouped[k])grouped[k]={day:it.day,label:it.label,color:it.color,halves:[]};grouped[k].halves.push(it.half);});
+      var rows=Object.values(grouped).sort(function(a,b){return a.day-b.day;});
+      rows.forEach(function(r){r.presenza=r.halves.length===2?"Intera giornata":r.halves[0]==="am"?"Mattina":"Pomeriggio";});
+      if(rows.length===0)return null;
+      return(<div style={{marginTop:20}}>
+        <h4 style={{margin:"0 0 10px",color:CL.greyDk,fontSize:14}}>Dettaglio giornaliero</h4>
+        <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
+          <thead><tr style={{background:"#FFF8F8"}}>
+            <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Data</th>
+            <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Attivita</th>
+            <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Presenza</th></tr></thead>
+          <tbody>{rows.map(function(r,i){return<tr key={i}>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk}}>{r.day} {MESI[month].substring(0,3)}</td>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:r.color}}>{r.label}</td>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",color:CL.greyMd}}>{r.presenza}</td></tr>;})}</tbody>
+        </table></div></div>);}()}
+    </div>);
 }
 
 export function Consuntivo(p){
@@ -122,6 +145,9 @@ export function Consuntivo(p){
     var cE=entries[n]||{};for(var i=1;i<=daysInMonth(year,month);i++){var e=cE[makeKey(year,month,i)];if(!e)continue;
       ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;if(x.status==="client"){d[n].tc+=.5;if(x.client)d[n].bc[x.client]=(d[n].bc[x.client]||0)+.5;}else if(x.status==="busy")d[n].tb+=.5;else if(x.status==="commercial")d[n].tcom+=.5;});}});return d;},[entries,cons,clients,year,month]);
 
+  var mc=useState(null),menuCons=mc[0],sMenuCons=mc[1];
+  var mr=useState(null),menuRect=mr[0],sMenuRect=mr[1];
+
   if(selCons&&selMode==="agenda")return<MiniCalendar name={selCons} entries={entries} clients={clients} year={year} month={month} onSave={onSaveEntry} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
   if(selCons&&selMode==="detail")return<ConsDetail name={selCons} entries={entries} clients={clients} year={year} month={month} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
 
@@ -131,18 +157,22 @@ export function Consuntivo(p){
         <th style={{padding:"10px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Consulente</th><th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red}}>GG Cli.</th>
         {clients.map(function(c){return<th key={c} style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,maxWidth:90,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c}</th>;})}
         <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red}}>Altro</th>
-        <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,color:"#FF8F00"}}>Comm.</th>
-        <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}></th></tr></thead>
+        <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,color:"#FF8F00"}}>Comm.</th></tr></thead>
       <tbody>{cons.map(function(n){var r=report[n];return(<tr key={n}>
-        <td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>{n}</td>
+        <td onClick={function(e){var rect=e.currentTarget.getBoundingClientRect();sMenuCons(n);sMenuRect({x:rect.left,y:rect.bottom+4});}} style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.red,textAlign:"left",cursor:"pointer"}}>{n}</td>
         <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.greyDk,fontSize:16}}>{fmtNum(r.tc)}</td>
         {clients.map(function(c){return<td key={c} style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:r.bc[c]?CL.red:"#ccc"}}>{r.bc[c]?fmtNum(r.bc[c]):"-"}</td>;})}
         <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:CL.grey,fontWeight:600}}>{fmtNum(r.tb)}</td>
-        <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:"#FF8F00",fontWeight:600}}>{r.tcom?fmtNum(r.tcom):"-"}</td>
-        <td style={{padding:"4px 6px",borderBottom:"1px solid #eee",textAlign:"center",whiteSpace:"nowrap"}}>
-          <button onClick={function(){sSelCons(n);sSelMode("detail");}} style={{padding:"4px 8px",borderRadius:5,border:"1px solid "+CL.red,background:"#fff",color:CL.red,fontSize:11,cursor:"pointer",fontFamily:FONT,marginRight:4}}>Consuntivo</button>
-          <button onClick={function(){sSelCons(n);sSelMode("agenda");}} style={{padding:"4px 8px",borderRadius:5,border:"1px solid "+CL.grey,background:"#fff",color:CL.grey,fontSize:11,cursor:"pointer",fontFamily:FONT}}>Agenda</button>
-        </td></tr>);})}</tbody></table>
-      <p style={{marginTop:8,fontSize:11,color:"#aaa"}}>Valori in giornate (0.5 = mezza giornata)</p>
-    </div></div>);
+        <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:"#FF8F00",fontWeight:600}}>{r.tcom?fmtNum(r.tcom):"-"}</td></tr>);})}</tbody></table>
+      <p style={{marginTop:8,fontSize:11,color:"#aaa"}}>Clicca sul nome consulente per consuntivo o agenda</p>
+    </div>
+    {menuCons&&<div style={{position:"fixed",inset:0,zIndex:999}} onClick={function(){sMenuCons(null);}}>
+      <div onClick={function(e){e.stopPropagation();}} style={{position:"fixed",left:menuRect?Math.min(menuRect.x,window.innerWidth-200):0,top:menuRect?Math.min(menuRect.y,window.innerHeight-120):0,background:"#fff",borderRadius:10,boxShadow:"0 8px 30px rgba(0,0,0,.2)",border:"1px solid #eee",padding:6,minWidth:180,fontFamily:FONT,zIndex:1000}}>
+        <div style={{padding:"6px 12px",fontSize:12,fontWeight:700,color:CL.greyDk}}>{menuCons}</div>
+        <div style={{height:1,background:"#eee",margin:"4px 0"}}/>
+        <button onClick={function(){var n=menuCons;sMenuCons(null);sSelCons(n);sSelMode("detail");}} style={{display:"block",width:"100%",padding:"9px 12px",border:"none",background:"transparent",textAlign:"left",fontSize:13,cursor:"pointer",fontFamily:FONT,borderRadius:6,color:CL.red,fontWeight:600}} onMouseEnter={function(e){e.target.style.background="#FFF3F3";}} onMouseLeave={function(e){e.target.style.background="transparent";}}>Consuntivo</button>
+        <button onClick={function(){var n=menuCons;sMenuCons(null);sSelCons(n);sSelMode("agenda");}} style={{display:"block",width:"100%",padding:"9px 12px",border:"none",background:"transparent",textAlign:"left",fontSize:13,cursor:"pointer",fontFamily:FONT,borderRadius:6,color:CL.greyDk}} onMouseEnter={function(e){e.target.style.background="#f5f5f5";}} onMouseLeave={function(e){e.target.style.background="transparent";}}>Modifica Agenda</button>
+      </div>
+    </div>}
+  </div>);
 }
