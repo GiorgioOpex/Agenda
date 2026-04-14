@@ -70,23 +70,15 @@ function ClientDetail(p){
 
 export function Consuntivo(p){
   var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},year=p.year,month=p.month,onSaveEntry=p.onSaveEntry;
-  var vs=useState("consultants"),viewMode=vs[0],sViewMode=vs[1];
   var cs=useState(null),selCons=cs[0],sSelCons=cs[1];
-  var cls=useState(null),selClient=cls[0],sSelClient=cls[1];
   var report=useMemo(function(){var d={};cons.forEach(function(n){d[n]={tc:0,tb:0,tcom:0,bc:{}};clients.forEach(function(c){d[n].bc[c]=0;});
     var cE=entries[n]||{};for(var i=1;i<=daysInMonth(year,month);i++){var e=cE[makeKey(year,month,i)];if(!e)continue;
       ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;if(x.status==="client"){d[n].tc+=.5;if(x.client)d[n].bc[x.client]=(d[n].bc[x.client]||0)+.5;}else if(x.status==="busy")d[n].tb+=.5;else if(x.status==="commercial")d[n].tcom+=.5;});}});return d;},[entries,cons,clients,year,month]);
 
   if(selCons)return<MiniCalendar name={selCons} entries={entries} clients={clients} year={year} month={month} onSave={onSaveEntry} onBack={function(){sSelCons(null);}}/>;
-  if(selClient)return<ClientDetail clientName={selClient} entries={entries} consultants={cons} clientBudgets={cBud} year={year} month={month} onBack={function(){sSelClient(null);}}/>;
 
   return(<div>
-    <div style={{display:"flex",gap:8,marginBottom:16}}>
-      <button onClick={function(){sViewMode("consultants");}} style={{padding:"8px 16px",borderRadius:8,border:"none",fontSize:13,fontWeight:viewMode==="consultants"?700:400,cursor:"pointer",fontFamily:FONT,background:viewMode==="consultants"?CL.red:"#f0f0f0",color:viewMode==="consultants"?"#fff":CL.greyMd}}>Per Consulente</button>
-      <button onClick={function(){sViewMode("clients");}} style={{padding:"8px 16px",borderRadius:8,border:"none",fontSize:13,fontWeight:viewMode==="clients"?700:400,cursor:"pointer",fontFamily:FONT,background:viewMode==="clients"?CL.red:"#f0f0f0",color:viewMode==="clients"?"#fff":CL.greyMd}}>Per Cliente</button>
-    </div>
-
-    {viewMode==="consultants"&&<div style={{overflowX:"auto"}}>
+    <div style={{overflowX:"auto"}}>
       <table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}><thead><tr style={{background:"#FFF8F8"}}>
         <th style={{padding:"10px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Consulente</th><th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red}}>GG Cli.</th>
         {clients.map(function(c){return<th key={c} style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,maxWidth:90,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c}</th>;})}
@@ -99,21 +91,6 @@ export function Consuntivo(p){
         <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:CL.grey,fontWeight:600}}>{fmtNum(r.tb)}</td>
         <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:"#FF8F00",fontWeight:600}}>{r.tcom?fmtNum(r.tcom):"-"}</td></tr>);})}</tbody></table>
       <p style={{marginTop:8,fontSize:11,color:"#aaa"}}>Clicca su un consulente per visualizzare e modificare la sua agenda</p>
-    </div>}
-
-    {viewMode==="clients"&&<div style={{overflowX:"auto"}}>
-      <table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}><thead><tr style={{background:"#FFF8F8"}}>
-        <th style={{padding:"10px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Cliente</th>
-        <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red}}>Previste</th>
-        <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red}}>Effettive</th>
-        <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red}}>Delta</th></tr></thead>
-      <tbody>{clients.map(function(c){var bud=cBud[c]||0,eff=cons.reduce(function(s,n){return s+((report[n]||{}).bc||{})[c]||0;},0),diff=eff-bud;
-        return<tr key={c} onClick={function(){sSelClient(c);}} style={{cursor:"pointer"}}>
-          <td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.red,textAlign:"left"}}>{c}</td>
-          <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center"}}>{fmtNum(bud)}</td>
-          <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.greyDk}}>{fmtNum(eff)}</td>
-          <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:diff>=0?"#2E7D32":CL.red}}>{(diff>=0?"+":"")+fmtNum(diff)}</td></tr>;})}</tbody></table>
-      <p style={{marginTop:8,fontSize:11,color:"#aaa"}}>Clicca su un cliente per il dettaglio giornate per consulente</p>
-    </div>}
+    </div>
     <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Valori in giornate (0.5 = mezza giornata)</p></div>);
 }
