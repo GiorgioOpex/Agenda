@@ -86,6 +86,8 @@ export function Dashboard(p){
       <div style={{padding:"12px 16px",background:CL.greyLt,borderRadius:10,border:"1px solid #ddd"}}><div style={{fontSize:11,color:CL.greyMd}}>Effettive YTD</div><div style={{fontSize:22,fontWeight:700,color:CL.greyDk}}>{fmtNum(ytdActual)}</div></div>
       <div style={{padding:"12px 16px",background:ytdActual>=ytdTarget?"#E8F5E9":"#FFF3F3",borderRadius:10,border:"1px solid "+(ytdActual>=ytdTarget?"#A5D6A7":CL.red)}}><div style={{fontSize:11,color:CL.greyMd}}>Raggiungimento YTD</div><div style={{fontSize:22,fontWeight:700,color:ytdActual>=ytdTarget?"#2E7D32":CL.red}}>{ytdTarget>0?Math.round((ytdActual/ytdTarget)*100):0}%</div></div></div>
 
+    {viewMode==="monthly"&&<CumulativeChart months={months} target={target} planned={planned} cM={cM} year={year}/>}
+
     {viewMode==="monthly"&&<div>
       {function(){var mi=selMonth!==null?selMonth:cM;var m=months[mi];var lbl=selMonth!==null?MESI[selMonth]:MESI[cM];
         return<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12,marginBottom:20}}>
@@ -124,7 +126,7 @@ export function Dashboard(p){
             <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.red}}>{fmtNum(months[selMonth].actual)}</td>
             <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:months[selMonth].actual-planned>=0?"#2E7D32":CL.red}}>{(months[selMonth].actual-planned>=0?"+":"")+fmtNum(months[selMonth].actual-planned)}</td></tr>
         </tbody></table></div></div>}
-      <CumulativeChart months={months} target={target} planned={planned} cM={cM} year={year}/></div>}
+      </div>}
 
     {viewMode==="weekly"&&<div>
       <div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #eee",marginBottom:16}}>

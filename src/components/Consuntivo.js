@@ -65,7 +65,27 @@ function ClientDetail(p){
         <td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontSize:11,color:CL.greyMd}}>{r.giorni.join(", ")}</td></tr>;})}
       {detail.rows.length===0&&<tr><td colSpan={3} style={{padding:"12px 14px",textAlign:"center",color:"#ccc"}}>Nessuna giornata registrata</td></tr>}
       {detail.rows.length>0&&<tr style={{background:"#FFF8F8"}}><td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700}}>TOTALE</td><td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.red,fontSize:15}}>{fmtNum(detail.totEff)}</td><td style={{borderTop:"2px solid "+CL.red}}/></tr>}
-      </tbody></table></div></div>);
+      </tbody></table></div>
+    {function(){var dayRows=[];
+      cons.forEach(function(n){var cE=entries[n]||{};
+        for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
+          var halves=[];["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client"&&x.client===clientName)halves.push(h);});
+          if(halves.length>0)dayRows.push({day:d,name:n,presenza:halves.length===2?"Intera giornata":halves[0]==="am"?"Mattina":"Pomeriggio"});}});
+      dayRows.sort(function(a,b){return a.day===b.day?a.name.localeCompare(b.name):a.day-b.day;});
+      if(dayRows.length===0)return null;
+      return(<div style={{marginTop:20}}>
+        <h4 style={{margin:"0 0 10px",color:CL.greyDk,fontSize:14}}>Dettaglio giornaliero</h4>
+        <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
+          <thead><tr style={{background:"#FFF8F8"}}>
+            <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Data</th>
+            <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Presenza</th>
+            <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Consulente</th></tr></thead>
+          <tbody>{dayRows.map(function(r,i){return<tr key={i}>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk}}>{r.day} {MESI[month].substring(0,3)}</td>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",color:CL.greyMd}}>{r.presenza}</td>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.red}}>{r.name}</td></tr>;})}</tbody>
+        </table></div></div>);}()}
+    </div>);
 }
 
 function ConsDetail(p){
