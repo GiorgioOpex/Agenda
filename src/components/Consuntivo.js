@@ -68,14 +68,62 @@ function ClientDetail(p){
       </tbody></table></div></div>);
 }
 
+function ConsDetail(p){
+  var name=p.name,entries=p.entries,clients=p.clients,year=p.year,month=p.month,onBack=p.onBack;
+  var cE=entries[name]||{};
+  var detail=useMemo(function(){var byClient={};var commDays=[];var busyDays=[];
+    for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
+      ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
+        if(x.status==="client"&&x.client){if(!byClient[x.client])byClient[x.client]=[];byClient[x.client].push({day:d,half:h});}
+        if(x.status==="commercial")commDays.push({day:d,half:h});
+        if(x.status==="busy")busyDays.push({day:d,half:h});});}
+    var rows=[];
+    Object.keys(byClient).forEach(function(c){var items=byClient[c];var grouped={};
+      items.forEach(function(it){if(!grouped[it.day])grouped[it.day]=[];grouped[it.day].push(it.half);});
+      var gg=items.length*0.5;var giorni=[];
+      Object.keys(grouped).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(d){var hh=grouped[d];
+        if(hh.length===2)giorni.push(d+" (intera)");
+        else if(hh[0]==="am")giorni.push(d+" (mattina)");
+        else giorni.push(d+" (pomeriggio)");});
+      rows.push({type:"client",label:c,gg:gg,giorni:giorni});});
+    if(commDays.length>0){var cGrouped={};commDays.forEach(function(it){if(!cGrouped[it.day])cGrouped[it.day]=[];cGrouped[it.day].push(it.half);});
+      var cGiorni=[];Object.keys(cGrouped).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(d){var hh=cGrouped[d];
+        if(hh.length===2)cGiorni.push(d+" (intera)");else if(hh[0]==="am")cGiorni.push(d+" (mattina)");else cGiorni.push(d+" (pomeriggio)");});
+      rows.push({type:"commercial",label:"COMMERCIALE OPEX",gg:commDays.length*0.5,giorni:cGiorni});}
+    if(busyDays.length>0){var bGrouped={};busyDays.forEach(function(it){if(!bGrouped[it.day])bGrouped[it.day]=[];bGrouped[it.day].push(it.half);});
+      var bGiorni=[];Object.keys(bGrouped).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(d){var hh=bGrouped[d];
+        if(hh.length===2)bGiorni.push(d+" (intera)");else if(hh[0]==="am")bGiorni.push(d+" (mattina)");else bGiorni.push(d+" (pomeriggio)");});
+      rows.push({type:"busy",label:"ALTRO IMPEGNO",gg:busyDays.length*0.5,giorni:bGiorni});}
+    return rows;},[cE,year,month]);
+  var totCli=detail.reduce(function(s,r){return r.type==="client"?s+r.gg:s;},0);
+  return(<div>
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}><button onClick={onBack} style={Object.assign({},sO,{padding:"6px 12px",fontSize:12})}>&#8249; Indietro</button><span style={{fontSize:16,fontWeight:700,color:CL.red}}>{name}</span><span style={{fontSize:12,color:CL.greyMd}}>Consuntivo {MESI[month]} {year}</span></div>
+    <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
+      <thead><tr style={{background:"#FFF8F8"}}>
+        <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Attivita</th>
+        <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>GG</th>
+        <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Dettaglio</th></tr></thead>
+      <tbody>{detail.map(function(r,i){var clr=r.type==="client"?CL.red:r.type==="commercial"?"#FF8F00":CL.grey;
+        return<tr key={i}><td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:clr}}>{r.label}</td>
+          <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:clr,fontSize:15}}>{fmtNum(r.gg)}</td>
+          <td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontSize:11,color:CL.greyMd}}>{r.giorni.join(", ")}</td></tr>;})}
+      {detail.length===0&&<tr><td colSpan={3} style={{padding:"12px",textAlign:"center",color:"#ccc"}}>Nessuna attivita registrata</td></tr>}
+      <tr style={{background:"#FFF8F8"}}><td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700}}>TOTALE CLIENTE</td>
+        <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.red,fontSize:15}}>{fmtNum(totCli)}</td>
+        <td style={{borderTop:"2px solid "+CL.red}}/></tr>
+    </tbody></table></div></div>);
+}
+
 export function Consuntivo(p){
   var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},year=p.year,month=p.month,onSaveEntry=p.onSaveEntry;
   var cs=useState(null),selCons=cs[0],sSelCons=cs[1];
+  var ms=useState(null),selMode=ms[0],sSelMode=ms[1];
   var report=useMemo(function(){var d={};cons.forEach(function(n){d[n]={tc:0,tb:0,tcom:0,bc:{}};clients.forEach(function(c){d[n].bc[c]=0;});
     var cE=entries[n]||{};for(var i=1;i<=daysInMonth(year,month);i++){var e=cE[makeKey(year,month,i)];if(!e)continue;
       ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;if(x.status==="client"){d[n].tc+=.5;if(x.client)d[n].bc[x.client]=(d[n].bc[x.client]||0)+.5;}else if(x.status==="busy")d[n].tb+=.5;else if(x.status==="commercial")d[n].tcom+=.5;});}});return d;},[entries,cons,clients,year,month]);
 
-  if(selCons)return<MiniCalendar name={selCons} entries={entries} clients={clients} year={year} month={month} onSave={onSaveEntry} onBack={function(){sSelCons(null);}}/>;
+  if(selCons&&selMode==="agenda")return<MiniCalendar name={selCons} entries={entries} clients={clients} year={year} month={month} onSave={onSaveEntry} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
+  if(selCons&&selMode==="detail")return<ConsDetail name={selCons} entries={entries} clients={clients} year={year} month={month} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
 
   return(<div>
     <div style={{overflowX:"auto"}}>
@@ -83,14 +131,18 @@ export function Consuntivo(p){
         <th style={{padding:"10px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Consulente</th><th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red}}>GG Cli.</th>
         {clients.map(function(c){return<th key={c} style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,maxWidth:90,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c}</th>;})}
         <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red}}>Altro</th>
-        <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,color:"#FF8F00"}}>Comm.</th></tr></thead>
-      <tbody>{cons.map(function(n){var r=report[n];return(<tr key={n} onClick={function(){sSelCons(n);}} style={{cursor:"pointer"}}>
-        <td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.red,textAlign:"left"}}>{n}</td>
+        <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,color:"#FF8F00"}}>Comm.</th>
+        <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}></th></tr></thead>
+      <tbody>{cons.map(function(n){var r=report[n];return(<tr key={n}>
+        <td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>{n}</td>
         <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.greyDk,fontSize:16}}>{fmtNum(r.tc)}</td>
         {clients.map(function(c){return<td key={c} style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:r.bc[c]?CL.red:"#ccc"}}>{r.bc[c]?fmtNum(r.bc[c]):"-"}</td>;})}
         <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:CL.grey,fontWeight:600}}>{fmtNum(r.tb)}</td>
-        <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:"#FF8F00",fontWeight:600}}>{r.tcom?fmtNum(r.tcom):"-"}</td></tr>);})}</tbody></table>
-      <p style={{marginTop:8,fontSize:11,color:"#aaa"}}>Clicca su un consulente per visualizzare e modificare la sua agenda</p>
-    </div>
-    <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Valori in giornate (0.5 = mezza giornata)</p></div>);
+        <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:"#FF8F00",fontWeight:600}}>{r.tcom?fmtNum(r.tcom):"-"}</td>
+        <td style={{padding:"4px 6px",borderBottom:"1px solid #eee",textAlign:"center",whiteSpace:"nowrap"}}>
+          <button onClick={function(){sSelCons(n);sSelMode("detail");}} style={{padding:"4px 8px",borderRadius:5,border:"1px solid "+CL.red,background:"#fff",color:CL.red,fontSize:11,cursor:"pointer",fontFamily:FONT,marginRight:4}}>Consuntivo</button>
+          <button onClick={function(){sSelCons(n);sSelMode("agenda");}} style={{padding:"4px 8px",borderRadius:5,border:"1px solid "+CL.grey,background:"#fff",color:CL.grey,fontSize:11,cursor:"pointer",fontFamily:FONT}}>Agenda</button>
+        </td></tr>);})}</tbody></table>
+      <p style={{marginTop:8,fontSize:11,color:"#aaa"}}>Valori in giornate (0.5 = mezza giornata)</p>
+    </div></div>);
 }
