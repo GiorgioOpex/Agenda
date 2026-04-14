@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { MESI, CL, FONT, loadAll, saveAll, Logo, Legenda } from "./shared";
+import { MESI, CL, FONT, loadAll, saveAll, Logo, Legenda, makeKey, daysInMonth, firstDow, fmtNum } from "./shared";
 import { LoginScreen } from "./Login";
 import { Calendar } from "./Calendar";
 import { DayModal } from "./DayModal";
@@ -16,6 +16,7 @@ export default function App(){
   var us=useState(""),user=us[0],sUser=us[1];var vs=useState("personal"),view=vs[0],sView=vs[1];
   var ys=useState(new Date().getFullYear()),yr=ys[0],sYr=ys[1];var ms=useState(new Date().getMonth()),mo=ms[0],sMo=ms[1];
   var es=useState(null),editDay=es[0],sED=es[1];var ss=useState(false),showS=ss[0],sSS=ss[1];
+  var rs=useState(false),showReport=rs[0],sShowReport=rs[1];
   useEffect(function(){loadAll().then(function(d){sData(d);sLoad(false);});},[]);
   function loginC(n){sUser(n);sAdm(false);sLog(true);sView("personal");}
   function loginA(n){sUser(n);sAdm(true);sLog(true);sView("admin");}
@@ -49,6 +50,42 @@ export default function App(){
         <button onClick={nM} style={{background:"#fff",border:"1px solid #ddd",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:18}}>&#8250;</button></div>}
       {view!=="dashboard"&&!isAdm&&<Legenda clients={data.clients} entries={data.entries[user]||{}}/>}
       {!isAdm&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><Calendar year={yr} month={mo} entries={data.entries[user]||{}} clients={data.clients} onDayClick={sED} onDrop={hMV}/></div>}
+      {!isAdm&&!showReport&&<div style={{textAlign:"center",marginTop:16}}><button onClick={function(){sShowReport(true);}} style={{padding:"10px 24px",borderRadius:8,border:"1px solid "+CL.red,background:"#fff",color:CL.red,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Genera Report {MESI[mo]} {yr}</button></div>}
+      {!isAdm&&showReport&&function(){
+        var cE=data.entries[user]||{};var dayRows=[];
+        for(var d=1;d<=daysInMonth(yr,mo);d++){var e=cE[makeKey(yr,mo,d)];if(!e)continue;
+          var fd=firstDow(yr,mo);var isSun=(fd+d-1)%7===6;if(isSun)continue;
+          var amC=e.am&&e.am.status==="client"&&e.am.client?e.am.client:null;
+          var pmC=e.pm&&e.pm.status==="client"&&e.pm.client?e.pm.client:null;
+          if(amC&&pmC&&amC===pmC){dayRows.push({day:d,client:amC,presenza:"Intera giornata"});}
+          else{if(amC)dayRows.push({day:d,client:amC,presenza:"Mattina"});if(pmC)dayRows.push({day:d,client:pmC,presenza:"Pomeriggio"});}}
+        var totGG=dayRows.reduce(function(s,r){return s+(r.presenza==="Intera giornata"?1:0.5);},0);
+        function buildMailBody(){var lines=["REPORT ATTIVITA' "+user,"",MESI[mo]+" "+yr,"",""];
+          dayRows.forEach(function(r){lines.push(r.day+" "+MESI[mo].substring(0,3)+" - "+r.client+" - "+r.presenza);});
+          lines.push("");lines.push("TOTALE GIORNATE CLIENTE: "+fmtNum(totGG));
+          return lines.join("%0D%0A");}
+        function openMail(){var subject="Report "+user+" - "+MESI[mo]+" "+yr;
+          window.open("mailto:?subject="+encodeURIComponent(subject)+"&body="+buildMailBody(),"_self");}
+        return(<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)",marginTop:16}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+            <h3 style={{margin:0,fontSize:16,color:CL.greyDk}}>Report {MESI[mo]} {yr}</h3>
+            <button onClick={function(){sShowReport(false);}} style={{padding:"4px 10px",borderRadius:6,border:"1px solid #ddd",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:FONT,color:"#888"}}>Chiudi</button></div>
+          {dayRows.length===0&&<p style={{textAlign:"center",color:"#ccc",padding:"20px 0"}}>Nessuna giornata cliente registrata</p>}
+          {dayRows.length>0&&<div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
+            <thead><tr style={{background:"#FFF8F8"}}>
+              <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Data</th>
+              <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Cliente</th>
+              <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Presenza</th></tr></thead>
+            <tbody>{dayRows.map(function(r,i){return<tr key={i}>
+              <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk}}>{r.day} {MESI[mo].substring(0,3)}</td>
+              <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.red}}>{r.client}</td>
+              <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",color:CL.greyMd}}>{r.presenza}</td></tr>;})}
+            <tr style={{background:"#FFF8F8"}}><td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700}} colSpan={2}>TOTALE</td>
+              <td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700,color:CL.red}}>{fmtNum(totGG)} giornate</td></tr>
+            </tbody></table></div>}
+          {dayRows.length>0&&<div style={{textAlign:"center",marginTop:16}}>
+            <button onClick={openMail} style={{padding:"12px 30px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Conferma Report e Invia Mail</button></div>}
+        </div>);}()}
       {isAdm&&view==="admin"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Panoramica - {MESI[mo]} {yr}</h3><Panoramica entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} year={yr} month={mo}/></div>}
       {isAdm&&view==="client"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Cliente - {MESI[mo]} {yr}</h3><VistaCliente entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} year={yr} month={mo}/></div>}
       {isAdm&&view==="report"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Consulente - {MESI[mo]} {yr}</h3><Consuntivo entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} year={yr} month={mo} onSaveEntry={hSE}/></div>}
