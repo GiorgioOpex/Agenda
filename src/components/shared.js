@@ -4,7 +4,7 @@ import { useState } from "react";
 export var MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 export var GIORNI=["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
 export var CL={red:"#C41E2A",redDk:"#9B1520",grey:"#3C3C3C",greyDk:"#2A2A2A",greyMd:"#555",greyLt:"#F2F2F2"};
-export var STATI={client:{bg:CL.red,text:"#fff",label:"Cliente OPEX"},busy:{bg:CL.grey,text:"#fff",label:"Altro impegno"},commercial:{bg:"#FF8F00",text:"#fff",label:"Commerciale OPEX"}};
+export var STATI={client:{bg:CL.red,text:"#fff",label:"Cliente OPEX"},busy:{bg:CL.grey,text:"#fff",label:"Altro impegno"},commercial:{bg:"#FF8F00",text:"#fff",label:"Commerciale OPEX"},training:{bg:"#7B1FA2",text:"#fff",label:"Formazione"}};
 export var CLIENT_COLORS=["#C41E2A","#1565C0","#2E7D32","#E65100","#6A1B9A","#00838F","#AD1457","#F9A825","#4E342E","#37474F","#00695C","#283593","#BF360C","#1B5E20","#4A148C","#006064","#D84315","#0277BD","#558B2F","#7B1FA2","#00796B","#C2185B","#F57F17","#3E2723","#455A64","#004D40","#1A237E","#E53935","#43A047","#8E24AA","#039BE5","#795548"];
 export var FONT="'DM Sans',sans-serif";
 export var sI={padding:"9px 12px",borderRadius:8,border:"1px solid #ddd",fontSize:14,fontFamily:FONT,flex:1,minWidth:0,boxSizing:"border-box",textTransform:"uppercase"};
@@ -20,6 +20,7 @@ export function getHalfBg(half,clients){
   if(!half||!half.status)return "transparent";
   if(half.status==="busy")return CL.grey;
   if(half.status==="commercial")return "#FF8F00";
+  if(half.status==="training")return "#7B1FA2";
   if(half.status==="client"&&half.client)return getClientColor(clients,half.client);
   return CL.red;}
 
@@ -51,9 +52,9 @@ export function calcAllActuals(entries,consultants){
     if(!r[x.client])r[x.client]=0;r[x.client]+=0.5;});});});return r;}
 
 export function calcMonthActuals(entries,consultants,year,month){
-  var r={byClient:{},totalClient:0,totalBusy:0,totalCommercial:0};
+  var r={byClient:{},totalClient:0,totalBusy:0,totalCommercial:0,totalTraining:0};
   consultants.forEach(function(n){var cE=entries[n]||{};for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
-    ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;if(x.status==="client"){r.totalClient+=0.5;if(x.client)r.byClient[x.client]=(r.byClient[x.client]||0)+0.5;}else if(x.status==="busy")r.totalBusy+=0.5;else if(x.status==="commercial")r.totalCommercial+=0.5;});}});return r;}
+    ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;if(x.status==="client"){r.totalClient+=0.5;if(x.client)r.byClient[x.client]=(r.byClient[x.client]||0)+0.5;}else if(x.status==="busy")r.totalBusy+=0.5;else if(x.status==="commercial")r.totalCommercial+=0.5;else if(x.status==="training")r.totalTraining+=0.5;});}});return r;}
 
 export function calcContractTotal(budget,endDate){
   if(!budget||!endDate)return 0;var now=new Date();var end=new Date(endDate);
@@ -70,13 +71,14 @@ export function Logo(p){return(<img src="/Logo_Opex.jpg" alt="OPEX" style={{heig
 export function Legenda(p){
   var clients=p.clients||[],entries=p.entries||{};
   var used=getUsedClients(entries);
-  var hasBusy=false,hasComm=false;
+  var hasBusy=false,hasComm=false,hasTrain=false;
   Object.keys(entries).forEach(function(key){var e=entries[key];if(!e)return;
-    ["am","pm"].forEach(function(h){if(e[h]&&e[h].status==="busy")hasBusy=true;if(e[h]&&e[h].status==="commercial")hasComm=true;});});
+    ["am","pm"].forEach(function(h){if(e[h]&&e[h].status==="busy")hasBusy=true;if(e[h]&&e[h].status==="commercial")hasComm=true;if(e[h]&&e[h].status==="training")hasTrain=true;});});
   return(<div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:16,alignItems:"center"}}>
     {used.map(function(c){return<div key={c} style={{display:"flex",alignItems:"center",gap:4}}>
       <div style={{width:13,height:13,borderRadius:4,background:getClientColor(clients,c)}}/><span style={{fontSize:11,color:CL.greyMd}}>{c}</span></div>;})}
     {hasBusy&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:CL.grey}}/><span style={{fontSize:11,color:CL.greyMd}}>Altro impegno</span></div>}
     {hasComm&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#FF8F00"}}/><span style={{fontSize:11,color:CL.greyMd}}>Commerciale OPEX</span></div>}
+    {hasTrain&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#7B1FA2"}}/><span style={{fontSize:11,color:CL.greyMd}}>Formazione</span></div>}
   </div>);
 }
