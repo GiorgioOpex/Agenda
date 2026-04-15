@@ -58,135 +58,45 @@ function CumulativeChart(p){
     </svg>
     <p style={{marginTop:8,fontSize:11,color:"#aaa"}}>Tratteggiate = proiezione. Continua = effettivo fino a {MESI[cM]}</p></div>);}
 
-async function loadJsPDF(){
-  if(window.jspdf)return window.jspdf.jsPDF;
-  return new Promise(function(resolve,reject){
-    var s1=document.createElement("script");s1.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
-    s1.onload=function(){
-      var s2=document.createElement("script");s2.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js";
-      s2.onload=function(){resolve(window.jspdf.jsPDF);};s2.onerror=reject;document.head.appendChild(s2);
-    };s1.onerror=reject;document.head.appendChild(s1);});}
-
-async function generateWeeklyPDF(data,year,wMo,weeks,planned,target,months,cM){
-  try{
-    var jsPDF=await loadJsPDF();
-    var doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-    var W=210,M=15,CW=W-2*M,y=M;var RED=[196,30,42];var GREY=[60,60,60];var GREEN=[46,125,50];var AMBER=[255,143,0];
-    function addText(txt,sz,clr,bold,align){doc.setFontSize(sz);doc.setTextColor(clr[0],clr[1],clr[2]);if(bold)doc.setFont("helvetica","bold");else doc.setFont("helvetica","normal");
-      if(align==="center")doc.text(txt,W/2,y,{align:"center"});else doc.text(txt,M,y);y+=sz*0.5+2;}
-    function addLine(){doc.setDrawColor(196,30,42);doc.setLineWidth(0.5);doc.line(M,y,W-M,y);y+=4;}
-    function checkPage(need){if(y+need>280){doc.addPage();y=M;}}
-
-    // Find previous week
-    var today=new Date();var todayD=today.getDate();var todayM=today.getMonth();
-    var prevWeek=null;
-    for(var wi=weeks.length-1;wi>=0;wi--){if(weeks[wi].end<todayD||wMo<todayM){prevWeek=weeks[wi];break;}}
-    if(!prevWeek&&weeks.length>0){
-      if(wMo===todayM){for(var wi2=weeks.length-1;wi2>=0;wi2--){if(weeks[wi2].end<todayD){prevWeek=weeks[wi2];break;}}}
-      else{prevWeek=weeks[weeks.length-1];}}
-    if(!prevWeek)prevWeek=weeks[0];
-
-    // YTD calculation
-    var ytdActual=months.reduce(function(s,m,i){return i<=cM?s+m.actual:s;},0);
-    var ytdPlanned=planned*(cM+1);var ytdTarget=target*(cM+1);
-    var yr2=String(year).substring(2);
-
-    // --- HEADER ---
-    addText("REPORT SETTIMANALE OPEX",18,RED,true,"center");y+=2;
-    addText(MESI[wMo]+" "+year,12,GREY,false,"center");y+=2;
-    addText("Generato il "+today.toLocaleDateString("it-IT"),9,[150,150,150],false,"center");y+=6;
-    addLine();y+=4;
-
-    // --- YTD ---
-    addText("SITUAZIONE YTD (Gennaio - "+MESI[cM]+")",14,RED,true);y+=6;
-    var ytdHeaders=[["Indicatore","Valore"]];
-    var ytdRows=[
-      ["Target YTD",fmtNum(ytdTarget)+" gg"],
-      ["Previste YTD",fmtNum(ytdPlanned)+" gg"],
-      ["Effettive YTD",fmtNum(ytdActual)+" gg"],
-      ["Raggiungimento",ytdTarget>0?Math.round((ytdActual/ytdTarget)*100)+"%":"--"]
-    ];
-    doc.autoTable({startY:y,head:ytdHeaders,body:ytdRows,margin:{left:M,right:M},
-      headStyles:{fillColor:RED,fontSize:10,font:"helvetica"},
-      bodyStyles:{fontSize:10},columnStyles:{0:{fontStyle:"bold"},1:{halign:"center"}},
-      theme:"grid"});
-    y=doc.lastAutoTable.finalY+8;
-
-    // --- YTD BAR CHART ---
-    checkPage(50);
-    addText("Andamento mensile "+year,12,GREY,true);y+=4;
-    var barH=35,barW=CW,bx=M;
-    var mx=Math.max(target,planned,Math.max.apply(null,months.map(function(m){return m.actual;})))||1;
-    var colW=barW/12;
-    doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);
-    for(var g=0;g<=4;g++){var gy=y+barH-(barH/4)*g;doc.line(M,gy,M+barW,gy);}
-    for(var mi=0;mi<12;mi++){var cx=bx+mi*colW+colW/2;var bw=colW*0.2;
-      var hT=Math.max(1,(target/mx)*barH);var hP=Math.max(1,(months[mi].planned/mx)*barH);var hA=Math.max(1,(months[mi].actual/mx)*barH);
-      doc.setFillColor(RED[0],RED[1],RED[2]);doc.rect(cx-bw*1.5,y+barH-hT,bw,hT,"F");
-      doc.setFillColor(GREEN[0],GREEN[1],GREEN[2]);doc.rect(cx-bw*0.5,y+barH-hP,bw,hP,"F");
-      doc.setFillColor(GREY[0],GREY[1],GREY[2]);doc.rect(cx+bw*0.5,y+barH-hA,bw,hA,"F");
-      doc.setFontSize(7);doc.setTextColor(100,100,100);doc.text(MESI[mi].substring(0,3),cx,y+barH+4,{align:"center"});}
-    // Legend
-    y+=barH+8;
-    doc.setFillColor(RED[0],RED[1],RED[2]);doc.rect(M,y,4,3,"F");doc.setFontSize(7);doc.setTextColor(100,100,100);doc.text("Target",M+6,y+2.5);
-    doc.setFillColor(GREEN[0],GREEN[1],GREEN[2]);doc.rect(M+30,y,4,3,"F");doc.text("Previste",M+36,y+2.5);
-    doc.setFillColor(GREY[0],GREY[1],GREY[2]);doc.rect(M+65,y,4,3,"F");doc.text("Effettive",M+71,y+2.5);
-    y+=10;
-
-    // --- PREVIOUS WEEK DETAIL ---
-    checkPage(40);
-    addLine();y+=2;
-    addText("SETTIMANA PRECEDENTE: Sett. "+prevWeek.isoW+"/"+yr2+" ("+prevWeek.start+"-"+prevWeek.end+" "+MESI[wMo].substring(0,3)+")",14,RED,true);y+=6;
-    var pwHeaders=[["Indicatore","Valore"]];
-    var delta=prevWeek.actual-prevWeek.target;
-    var pwRows=[
-      ["Giorni lavorativi",fmtNum(prevWeek.workDays)+" gg"],
-      ["Target settimana",fmtNum(prevWeek.target)+" gg"],
-      ["Previste",fmtNum(prevWeek.planned)+" gg"],
-      ["Effettive",fmtNum(prevWeek.actual)+" gg"],
-      ["Delta",(delta>=0?"+":"")+fmtNum(delta)+" gg"]
-    ];
-    doc.autoTable({startY:y,head:pwHeaders,body:pwRows,margin:{left:M,right:M},
-      headStyles:{fillColor:RED,fontSize:10},bodyStyles:{fontSize:10},
-      columnStyles:{0:{fontStyle:"bold"},1:{halign:"center"}},theme:"grid"});
-    y=doc.lastAutoTable.finalY+8;
-
-    // --- WEEKLY BAR CHART ---
-    checkPage(50);
-    addText("Andamento settimanale "+MESI[wMo]+" "+year,12,GREY,true);y+=4;
-    var wBarH=30,wBarW=CW;
-    var mxW2=Math.max.apply(null,weeks.map(function(w){return Math.max(w.actual,w.planned,w.target);}))||1;
-    var wColW=wBarW/weeks.length;
-    doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);
-    for(var g2=0;g2<=4;g2++){var gy2=y+wBarH-(wBarH/4)*g2;doc.line(M,gy2,M+wBarW,gy2);}
-    for(var wi3=0;wi3<weeks.length;wi3++){var w=weeks[wi3];var wcx=M+wi3*wColW+wColW/2;var wbw=wColW*0.2;
-      var whT=Math.max(1,(w.target/mxW2)*wBarH);var whP=Math.max(1,(w.planned/mxW2)*wBarH);var whA=Math.max(1,(w.actual/mxW2)*wBarH);
-      doc.setFillColor(RED[0],RED[1],RED[2]);doc.rect(wcx-wbw*1.5,y+wBarH-whT,wbw,whT,"F");
-      doc.setFillColor(GREEN[0],GREEN[1],GREEN[2]);doc.rect(wcx-wbw*0.5,y+wBarH-whP,wbw,whP,"F");
-      doc.setFillColor(GREY[0],GREY[1],GREY[2]);doc.rect(wcx+wbw*0.5,y+wBarH-whA,wbw,whA,"F");
-      doc.setFontSize(7);doc.setTextColor(100,100,100);doc.text(w.isoW+"/"+yr2,wcx,y+wBarH+4,{align:"center"});}
-    y+=wBarH+8;
-    doc.setFillColor(RED[0],RED[1],RED[2]);doc.rect(M,y,4,3,"F");doc.setFontSize(7);doc.setTextColor(100,100,100);doc.text("Target",M+6,y+2.5);
-    doc.setFillColor(GREEN[0],GREEN[1],GREEN[2]);doc.rect(M+30,y,4,3,"F");doc.text("Previste",M+36,y+2.5);
-    doc.setFillColor(GREY[0],GREY[1],GREY[2]);doc.rect(M+65,y,4,3,"F");doc.text("Effettive",M+71,y+2.5);
-    y+=10;
-
-    // --- ALL WEEKS TABLE ---
-    checkPage(30);
-    addText("Dettaglio tutte le settimane - "+MESI[wMo]+" "+year,12,GREY,true);y+=4;
-    var wkHeaders=[["Settimana","GG lav.","Target","Previste","Effettive","Delta"]];
-    var wkRows=weeks.map(function(w){var d=w.actual-w.target;return["Sett. "+w.isoW+"/"+yr2+" ("+w.start+"-"+w.end+")",fmtNum(w.workDays),fmtNum(w.target),fmtNum(w.planned),fmtNum(w.actual),(d>=0?"+":"")+fmtNum(d)];});
-    doc.autoTable({startY:y,head:wkHeaders,body:wkRows,margin:{left:M,right:M},
-      headStyles:{fillColor:RED,fontSize:9},bodyStyles:{fontSize:9},
-      columnStyles:{0:{fontStyle:"bold"},1:{halign:"center"},2:{halign:"center"},3:{halign:"center"},4:{halign:"center"},5:{halign:"center"}},theme:"grid"});
-    y=doc.lastAutoTable.finalY+10;
-
-    // --- FOOTER ---
-    doc.setFontSize(8);doc.setTextColor(150,150,150);
-    doc.text("OPEX Solutions - Report generato automaticamente",W/2,285,{align:"center"});
-
-    doc.save("Report_Settimanale_OPEX_Sett"+prevWeek.isoW+"_"+year+".pdf");
-  }catch(e){alert("Errore generazione PDF. Assicurati di avere connessione internet per il primo caricamento.");console.error(e);}
+function generateWeeklyMail(data,year,wMo,weeks,planned,target,months,cM){
+  var today=new Date();var todayD=today.getDate();var todayM=today.getMonth();
+  var prevWeek=null;
+  for(var wi=weeks.length-1;wi>=0;wi--){if(wMo<todayM||(wMo===todayM&&weeks[wi].end<todayD)){prevWeek=weeks[wi];break;}}
+  if(!prevWeek)prevWeek=weeks[weeks.length-1];
+  var yr2=String(year).substring(2);
+  var ytdActual=months.reduce(function(s,m,i){return i<=cM?s+m.actual:s;},0);
+  var ytdPlanned=planned*(cM+1);var ytdTarget=target*(cM+1);
+  var ytdPct=ytdTarget>0?Math.round((ytdActual/ytdTarget)*100):0;
+  var delta=prevWeek.actual-prevWeek.target;
+  var lines=[];
+  lines.push("REPORT SETTIMANALE OPEX");
+  lines.push(MESI[wMo]+" "+year);
+  lines.push("Generato il "+today.toLocaleDateString("it-IT"));
+  lines.push("");
+  lines.push("=== SITUAZIONE YTD (Gennaio - "+MESI[cM]+") ===");
+  lines.push("");
+  lines.push("Target YTD: "+fmtNum(ytdTarget)+" gg");
+  lines.push("Previste YTD: "+fmtNum(ytdPlanned)+" gg");
+  lines.push("Effettive YTD: "+fmtNum(ytdActual)+" gg");
+  lines.push("Raggiungimento: "+ytdPct+"%");
+  lines.push("");
+  lines.push("=== SETTIMANA PRECEDENTE: Sett. "+prevWeek.isoW+"/"+yr2+" ("+prevWeek.start+"-"+prevWeek.end+" "+MESI[wMo].substring(0,3)+") ===");
+  lines.push("");
+  lines.push("Giorni lavorativi: "+fmtNum(prevWeek.workDays)+" gg");
+  lines.push("Target: "+fmtNum(prevWeek.target)+" gg");
+  lines.push("Previste: "+fmtNum(prevWeek.planned)+" gg");
+  lines.push("Effettive: "+fmtNum(prevWeek.actual)+" gg");
+  lines.push("Delta: "+(delta>=0?"+":"")+fmtNum(delta)+" gg");
+  lines.push("");
+  lines.push("=== DETTAGLIO SETTIMANE "+MESI[wMo].toUpperCase()+" "+year+" ===");
+  lines.push("");
+  weeks.forEach(function(w){var d=w.actual-w.target;
+    lines.push("Sett. "+w.isoW+"/"+yr2+" ("+w.start+"-"+w.end+") | GG lav: "+fmtNum(w.workDays)+" | Target: "+fmtNum(w.target)+" | Prev: "+fmtNum(w.planned)+" | Eff: "+fmtNum(w.actual)+" | Delta: "+(d>=0?"+":"")+fmtNum(d));});
+  lines.push("");
+  lines.push("---");
+  lines.push("OPEX Solutions - Report generato automaticamente");
+  var subject="Report Settimanale OPEX - Sett. "+prevWeek.isoW+"/"+yr2+" - "+MESI[wMo]+" "+year;
+  window.location.href="mailto:?subject="+encodeURIComponent(subject)+"&body="+lines.join("%0D%0A");
 }
 
 export function Dashboard(p){
@@ -303,7 +213,7 @@ export function Dashboard(p){
           <div style={{padding:"12px 16px",background:ytdData.actual>=ytdData.target?"#E8F5E9":"#FFF3F3",borderRadius:10,border:"1px solid "+(ytdData.actual>=ytdData.target?"#A5D6A7":CL.red)}}><div style={{fontSize:11,color:CL.greyMd}}>Raggiungimento</div><div style={{fontSize:22,fontWeight:700,color:ytdData.actual>=ytdData.target?"#2E7D32":CL.red}}>{ytdData.target>0?Math.round((ytdData.actual/ytdData.target)*100):0}%</div></div></div>
         <div style={{marginTop:12,height:10,background:CL.greyLt,borderRadius:5,overflow:"hidden"}}><div style={{height:"100%",width:Math.min(100,ytdData.target>0?(ytdData.actual/ytdData.target)*100:0)+"%",background:ytdData.actual>=ytdData.target?"#2E7D32":CL.red,borderRadius:5}}/></div></div>}
       <div style={{textAlign:"center",marginTop:20}}>
-        <button onClick={function(){generateWeeklyPDF(data,year,wMo,weeks,planned,target,months,cM);}} style={{padding:"12px 28px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Genera Report PDF</button>
+        <button onClick={function(){generateWeeklyMail(data,year,wMo,weeks,planned,target,months,cM);}} style={{padding:"12px 28px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Invia Report via Mail</button>
       </div>
     </div>}
   </div>);
