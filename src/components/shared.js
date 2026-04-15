@@ -61,7 +61,7 @@ export function calcContractTotal(budget,endDate){
   if(end<=now)return 0;var months=0;var d=new Date(now.getFullYear(),now.getMonth(),1);
   while(d<=end){months++;d.setMonth(d.getMonth()+1);}return budget*months;}
 
-export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},entries:{},admins:[],targetMensile:0};
+export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},consultantEmails:{},entries:{},admins:[],targetMensile:0};
 
 export async function loadAll(){try{var res=await fetch("/api/data?t="+Date.now());if(!res.ok)return Object.assign({},EMPTY);var d=await res.json();return Object.assign({},EMPTY,d);}catch(e){return Object.assign({},EMPTY);}}
 export async function saveAll(fd){try{var res=await fetch("/api/data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(fd)});var r=await res.json();return r.ok;}catch(e){return false;}}

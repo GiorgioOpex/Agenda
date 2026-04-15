@@ -7,8 +7,9 @@ export function Impostazioni(p){
   var c1=useState([].concat(data.consultants)),cl=c1[0],sCl=c1[1];var l1=useState([].concat(data.clients)),ll=l1[0],sLl=l1[1];
   var a1=useState([].concat(data.admins)),al=a1[0],sAl=a1[1];var b1=useState(Object.assign({},data.clientBudgets||{})),bud=b1[0],sBud=b1[1];
   var ed1=useState(Object.assign({},data.clientEndDates||{})),endD=ed1[0],sEndD=ed1[1];
+  var ce1=useState(Object.assign({},data.consultantEmails||{})),cEmails=ce1[0],sCEmails=ce1[1];
   var t1=useState(data.targetMensile||0),tM=t1[0],sTM=t1[1];
-  var nc1=useState(""),nc=nc1[0],sNc=nc1[1];var nl1=useState(""),nl=nl1[0],sNl=nl1[1];
+  var nc1=useState(""),nc=nc1[0],sNc=nc1[1];var ne1=useState(""),nce=ne1[0],sNce=ne1[1];var nl1=useState(""),nl=nl1[0],sNl=nl1[1];
   var na1=useState(""),na=na1[0],sNa=na1[1];var np1=useState(""),np=np1[0],sNp=np1[1];
   var n21=useState(""),np2=n21[0],sN2=n21[1];var am1=useState(""),am=am1[0],sAm=am1[1];
   var tb1=useState("people"),tab=tb1[0],sTab=tb1[1];var sv1=useState(false),saving=sv1[0],sSv=sv1[1];
@@ -20,10 +21,15 @@ export function Impostazioni(p){
       if(!bud[c]||bud[c]<=0)return "Il cliente \""+c+"\" non ha le giornate previste/mese";
       if(!endD[c])return "Il cliente \""+c+"\" non ha la data fine contratto";}
     return null;}
+  function validateConsultants(){
+    for(var i=0;i<cl.length;i++){var c=cl[i];
+      if(!cEmails[c]||!cEmails[c].trim())return "Il consulente \""+c+"\" non ha la mail";
+      if(cEmails[c].indexOf("@")<1)return "La mail di \""+c+"\" non e' valida";}
+    return null;}
   async function doSave(){
-    var err=validateClients();
+    var err=validateClients();if(!err)err=validateConsultants();
     if(err){sSaveErr(err);return;}
-    sSaveErr("");sSv(true);await onSave(cl,ll,al,bud,endD,tM);sSv(false);}
+    sSaveErr("");sSv(true);await onSave(cl,ll,al,bud,endD,tM,cEmails);sSv(false);}
   function missingBud(c){return !bud[c]||bud[c]<=0;}
   function missingEnd(c){return !endD[c];}
   return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
@@ -31,8 +37,14 @@ export function Impostazioni(p){
       <h3 style={{margin:"0 0 16px",fontSize:20,color:CL.greyDk}}>Gestione</h3>
       <div style={{display:"flex",gap:4,marginBottom:20,flexWrap:"wrap"}}>{[["people","Consulenti"],["clients","Clienti e Budget"],["target","Target"],["admins","Admin"]].map(function(t){return<button key={t[0]} onClick={function(){sTab(t[0]);sSaveErr("");}} style={{padding:"8px 14px",borderRadius:8,border:"none",fontSize:12,fontWeight:tab===t[0]?700:400,cursor:"pointer",fontFamily:FONT,background:tab===t[0]?CL.red:"#f0f0f0",color:tab===t[0]?"#fff":CL.greyMd}}>{t[1]}</button>;})}</div>
       {tab==="people"&&<div><h4 style={{margin:"0 0 10px",color:CL.red}}>Consulenti</h4>
-        {cl.map(function(c,i){return<div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><span style={{flex:1,padding:"6px 10px",background:CL.greyLt,borderRadius:6,fontSize:14}}>{c}</span><button onClick={function(){sCl(cl.filter(function(_,j){return j!==i;}));}} style={{background:"none",border:"none",color:CL.red,cursor:"pointer",fontSize:18}}>x</button></div>;})}
-        <div style={{display:"flex",gap:8,marginTop:6}}><input value={nc} onChange={function(e){sNc(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&nc.trim()){sCl([].concat(cl,[nc.trim().toUpperCase()]));sNc("");}}} placeholder="Nuovo consulente..." style={sI}/><button onClick={function(){if(nc.trim()){sCl([].concat(cl,[nc.trim().toUpperCase()]));sNc("");}}} style={sB}>+</button></div></div>}
+        {cl.map(function(c,i){return<div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+          <span style={{flex:"1 1 140px",padding:"6px 10px",background:CL.greyLt,borderRadius:6,fontSize:14}}>{c}</span>
+          <input value={cEmails[c]||""} onChange={function(e){var ne=Object.assign({},cEmails);ne[c]=e.target.value;sCEmails(ne);sSaveErr("");}} placeholder="email@..." style={Object.assign({},sI,{flex:"1 1 180px",padding:"6px 10px",fontSize:12,border:(!cEmails[c]||!cEmails[c].trim())?"2px solid #e53935":"1px solid #ddd"})}/>
+          <button onClick={function(){sCl(cl.filter(function(_,j){return j!==i;}));var ne=Object.assign({},cEmails);delete ne[c];sCEmails(ne);}} style={{background:"none",border:"none",color:CL.red,cursor:"pointer",fontSize:18}}>x</button></div>;})}
+        <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}>
+          <input value={nc} onChange={function(e){sNc(e.target.value);}} placeholder="Nome consulente..." style={Object.assign({},sI,{flex:"1 1 140px"})}/>
+          <input value={nce} onChange={function(e){sNce(e.target.value);}} placeholder="email@..." style={Object.assign({},sI,{flex:"1 1 180px",fontSize:12})}/>
+          <button onClick={function(){if(nc.trim()&&nce.trim()){var nome=nc.trim().toUpperCase();sCl([].concat(cl,[nome]));var ne=Object.assign({},cEmails);ne[nome]=nce.trim().toLowerCase();sCEmails(ne);sNc("");sNce("");}}} style={sB}>+</button></div></div>}
       {tab==="clients"&&<div><h4 style={{margin:"0 0 10px",color:CL.red}}>Clienti, giornate/mese e fine contratto</h4>
         {ll.map(function(c,i){return<div key={i} style={{marginBottom:10}}>
           <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>

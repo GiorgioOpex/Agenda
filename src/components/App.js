@@ -28,7 +28,7 @@ export default function App(){
     else if(half==="am"){dst.am=src.am;ent[user][toDk]=dst;var newSrc=Object.assign({},src);delete newSrc.am;if(newSrc.pm&&newSrc.pm.status)ent[user][fromDk]=newSrc;else delete ent[user][fromDk];}
     else if(half==="pm"){dst.pm=src.pm;ent[user][toDk]=dst;var newSrc2=Object.assign({},src);delete newSrc2.pm;if(newSrc2.am&&newSrc2.am.status)ent[user][fromDk]=newSrc2;else delete ent[user][fromDk];}
     nd.entries=ent;sData(nd);await saveAll(nd);},[data,user]);
-  var hSS=useCallback(async function(cl,ll,al,budgets,endDates,targetM){var nd=Object.assign({},data,{consultants:cl,clients:ll,admins:al,clientBudgets:budgets,clientEndDates:endDates,targetMensile:targetM});sData(nd);sSS(false);await saveAll(nd);},[data]);
+  var hSS=useCallback(async function(cl,ll,al,budgets,endDates,targetM,emails){var nd=Object.assign({},data,{consultants:cl,clients:ll,admins:al,clientBudgets:budgets,clientEndDates:endDates,targetMensile:targetM,consultantEmails:emails||{}});sData(nd);sSS(false);await saveAll(nd);},[data]);
   var hSE=useCallback(async function(consultantName,dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[consultantName])ent[consultantName]={};if(val)ent[consultantName][dk]=val;else delete ent[consultantName][dk];nd.entries=ent;sData(nd);await saveAll(nd);},[data]);
   function pM(){if(mo===0){sMo(11);sYr(function(y){return y-1;});}else sMo(function(m){return m-1;});}
   function nM(){if(mo===11){sMo(0);sYr(function(y){return y+1;});}else sMo(function(m){return m+1;});}
@@ -64,15 +64,20 @@ export default function App(){
           else{if(amT)trainRows.push({day:d,presenza:"Mattina"});if(pmT)trainRows.push({day:d,presenza:"Pomeriggio"});}}
         var totGG=dayRows.reduce(function(s,r){return s+(r.presenza==="Intera giornata"?1:0.5);},0);
         var totTrain=trainRows.reduce(function(s,r){return s+(r.presenza==="Intera giornata"?1:0.5);},0);
-        function buildMailBody(){var lines=["REPORT ATTIVITA' "+user,"",MESI[mo]+" "+yr,"","--- CONSULENZA ---",""];
+        function buildMailBody(){var userEmail=(data.consultantEmails||{})[user]||"";
+          var lines=["REPORT ATTIVITA' "+user,"",MESI[mo]+" "+yr,"","--- CONSULENZA ---",""];
           dayRows.forEach(function(r){lines.push(r.day+" "+MESI[mo].substring(0,3)+" - "+r.client+" - "+r.presenza);});
           lines.push("");lines.push("TOTALE GIORNATE CONSULENZA: "+fmtNum(totGG));
           if(trainRows.length>0){lines.push("");lines.push("--- FORMAZIONE ---");lines.push("");
             trainRows.forEach(function(r){lines.push(r.day+" "+MESI[mo].substring(0,3)+" - FORMAZIONE - "+r.presenza);});
             lines.push("");lines.push("TOTALE GIORNATE FORMAZIONE: "+fmtNum(totTrain));}
+          lines.push("");lines.push("---");lines.push(user);if(userEmail)lines.push(userEmail);
           return lines.join("%0D%0A");}
         function openMail(){var subject="Report "+user+" - "+MESI[mo]+" "+yr;
-          window.open("mailto:?subject="+encodeURIComponent(subject)+"&body="+buildMailBody(),"_self");}
+          var userEmail=(data.consultantEmails||{})[user]||"";
+          var mailto="mailto:?subject="+encodeURIComponent(subject)+"&body="+buildMailBody();
+          if(userEmail)mailto="mailto:?from="+encodeURIComponent(userEmail)+"&subject="+encodeURIComponent(subject)+"&body="+buildMailBody();
+          window.location.href=mailto;}
         return(<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)",marginTop:16}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
             <h3 style={{margin:0,fontSize:16,color:CL.greyDk}}>Report {MESI[mo]} {yr}</h3>
