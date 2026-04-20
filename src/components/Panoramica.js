@@ -1,9 +1,11 @@
 "use client";
+import { useState } from "react";
 import { CL, FONT, makeKey, daysInMonth, firstDow, fmtNum, getHalfBg, getClientColor, getUsedClients } from "./shared";
 
 export function Panoramica(p){
   var entries=p.entries,cons=p.consultants,clients=p.clients||[],cBud=p.clientBudgets||{},year=p.year,month=p.month;
   var days=daysInMonth(year,month),fd=firstDow(year,month);
+  var fs=useState(null),filter=fs[0],sFilter=fs[1];
 
   var allUsed={},hasBusy=false,hasComm=false,hasTrain=false,totCliAll=0,totBusyAll=0,totCommAll=0,totTrainAll=0;
   cons.forEach(function(name){var cE=entries[name]||{};
@@ -20,6 +22,22 @@ export function Panoramica(p){
   var totPreviste=clients.reduce(function(s,c){return s+(cBud[c]||0);},0);
   var totDisponibili=workDays*cons.length-totCliAll-totBusyAll-totCommAll-totTrainAll;
 
+  function matchFilter(half){
+    if(!filter)return true;
+    if(!half||!half.status)return false;
+    if(filter==="__busy")return half.status==="busy";
+    if(filter==="__commercial")return half.status==="commercial";
+    if(filter==="__training")return half.status==="training";
+    return half.status==="client"&&half.client===filter;
+  }
+
+  function getFilteredBg(half){
+    if(!half||!half.status)return "transparent";
+    if(!filter)return getHalfBg(half,clients);
+    if(matchFilter(half))return getHalfBg(half,clients);
+    return "transparent";
+  }
+
   return(<div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:20}}>
       <div style={{padding:"12px 16px",background:"#FFF3F3",borderRadius:12,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Previste clienti</div><div style={{fontSize:22,fontWeight:700,color:CL.red}}>{fmtNum(totPreviste)}</div><div style={{fontSize:11,color:"#888"}}>gg/mese</div></div>
@@ -28,13 +46,18 @@ export function Panoramica(p){
       <div style={{padding:"12px 16px",background:totCliAll>=totPreviste?"#E8F5E9":"#FFF3F3",borderRadius:12,border:"1px solid "+(totCliAll>=totPreviste?"#A5D6A7":CL.red)}}><div style={{fontSize:11,color:CL.greyMd}}>Delta consulenza</div><div style={{fontSize:22,fontWeight:700,color:totCliAll>=totPreviste?"#2E7D32":CL.red}}>{(totCliAll-totPreviste>=0?"+":"")+fmtNum(totCliAll-totPreviste)}</div></div>
       <div style={{padding:"12px 16px",background:"#E8F5E9",borderRadius:12,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Disponibili</div><div style={{fontSize:22,fontWeight:700,color:"#2E7D32"}}>{fmtNum(totDisponibili)}</div><div style={{fontSize:11,color:"#888"}}>gg team</div></div>
     </div>
-    <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14,alignItems:"center"}}>
-      {usedList.map(function(c){return<div key={c} style={{display:"flex",alignItems:"center",gap:4}}>
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14,alignItems:"center"}}>
+      {filter&&<button onClick={function(){sFilter(null);}} style={{padding:"4px 10px",borderRadius:6,border:"1px solid #ddd",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:FONT,color:"#888"}}>Mostra tutti</button>}
+      {usedList.map(function(c){var isActive=filter===c;return<div key={c} onClick={function(){sFilter(isActive?null:c);}} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"3px 8px",borderRadius:6,border:isActive?"2px solid "+getClientColor(clients,c):"2px solid transparent",background:isActive?"#fff":"transparent"}}>
         <div style={{width:13,height:13,borderRadius:4,background:getClientColor(clients,c)}}/><span style={{fontSize:11,color:CL.greyMd}}>{c}</span></div>;})}
-      {hasBusy&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:CL.grey}}/><span style={{fontSize:11,color:CL.greyMd}}>Altro impegno</span></div>}
-      {hasComm&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#FF8F00"}}/><span style={{fontSize:11,color:CL.greyMd}}>Commerciale OPEX</span></div>}
-      {hasTrain&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#7B1FA2"}}/><span style={{fontSize:11,color:CL.greyMd}}>Formazione</span></div>}
+      {hasBusy&&<div onClick={function(){sFilter(filter==="__busy"?null:"__busy");}} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"3px 8px",borderRadius:6,border:filter==="__busy"?"2px solid "+CL.grey:"2px solid transparent",background:filter==="__busy"?"#fff":"transparent"}}>
+        <div style={{width:13,height:13,borderRadius:4,background:CL.grey}}/><span style={{fontSize:11,color:CL.greyMd}}>Altro impegno</span></div>}
+      {hasComm&&<div onClick={function(){sFilter(filter==="__commercial"?null:"__commercial");}} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"3px 8px",borderRadius:6,border:filter==="__commercial"?"2px solid #FF8F00":"2px solid transparent",background:filter==="__commercial"?"#fff":"transparent"}}>
+        <div style={{width:13,height:13,borderRadius:4,background:"#FF8F00"}}/><span style={{fontSize:11,color:CL.greyMd}}>Commerciale OPEX</span></div>}
+      {hasTrain&&<div onClick={function(){sFilter(filter==="__training"?null:"__training");}} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"3px 8px",borderRadius:6,border:filter==="__training"?"2px solid #7B1FA2":"2px solid transparent",background:filter==="__training"?"#fff":"transparent"}}>
+        <div style={{width:13,height:13,borderRadius:4,background:"#7B1FA2"}}/><span style={{fontSize:11,color:CL.greyMd}}>Formazione</span></div>}
     </div>
+    {filter&&<div style={{padding:"6px 12px",marginBottom:10,background:"#FFF8F0",borderRadius:8,border:"1px solid #F0C040",fontSize:12,color:CL.greyDk}}>Filtro attivo: <strong>{filter.startsWith("__")?filter.replace("__",""):filter}</strong> — clicca di nuovo per rimuovere</div>}
     <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:11,fontFamily:FONT}}>
     <thead><tr>
       <th style={{position:"sticky",left:0,background:"#fff",padding:"7px 10px",borderBottom:"2px solid "+CL.red,textAlign:"left",minWidth:110,zIndex:2}}>Consulente</th>
@@ -46,7 +69,8 @@ export function Panoramica(p){
     </tr></thead>
     <tbody>{cons.map(function(name){var cE=entries[name]||{},totCli=0,totBusy=0,totComm=0,totTrain=0;
       var tds=Array.from({length:days},function(_,i){var key=makeKey(year,month,i+1),e=cE[key],isSun=(fd+i)%7===6,isSat=(fd+i)%7===5;
-        var amBg=getHalfBg(e&&e.am?e.am:null,clients);var pmBg=getHalfBg(e&&e.pm?e.pm:null,clients);
+        var amBg=getFilteredBg(e&&e.am?e.am:null);
+        var pmBg=getFilteredBg(e&&e.pm?e.pm:null);
         if(e&&e.am&&e.am.status==="client")totCli+=.5;if(e&&e.pm&&e.pm.status==="client")totCli+=.5;
         if(e&&e.am&&e.am.status==="busy")totBusy+=.5;if(e&&e.pm&&e.pm.status==="busy")totBusy+=.5;
         if(e&&e.am&&e.am.status==="commercial")totComm+=.5;if(e&&e.pm&&e.pm.status==="commercial")totComm+=.5;
