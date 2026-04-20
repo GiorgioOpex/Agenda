@@ -1,6 +1,6 @@
 {
   "name": "agenda-opex",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,6 +11,6 @@
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "@vercel/blob": "^0.27.0"
+    "@supabase/supabase-js": "^2.49.0"
   }
 }
