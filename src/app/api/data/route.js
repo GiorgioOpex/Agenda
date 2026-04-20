@@ -36,7 +36,7 @@ async function readData() {
     clientBudgets[c.name] = c.budget_monthly || 0;
     clientEndDates[c.name] = c.contract_end || "";
   });
-  var adminList = (admins || []).map(function(a) { return { name: a.name, email: a.email, auth_id: a.auth_id }; });
+  var adminList = (admins || []).map(function(a) { return { name: a.name, email: a.email, passHash: a.pass_hash || '', auth_id: a.auth_id }; });
 
   // Build entries in legacy format: { "CONSULTANT_NAME": { "2026-04-08": { am: {...}, pm: {...} } } }
   var entryMap = {};
@@ -131,6 +131,30 @@ async function writeData(body) {
       await supabase.from('settings').update({ target_monthly: body.targetMensile }).eq('org_id', orgId);
     } else {
       await supabase.from('settings').insert({ org_id: orgId, target_monthly: body.targetMensile });
+    }
+  }
+
+  // Save admins
+  if (body.admins !== undefined) {
+    const { data: existingAdmins } = await supabase.from('users').select('name').eq('org_id', orgId).eq('role', 'admin');
+    var existingAdminNames = (existingAdmins || []).map(function(a) { return a.name; });
+    var newAdmins = body.admins || [];
+    var newAdminNames = newAdmins.map(function(a) { return a.name; });
+
+    // Delete removed admins
+    for (var ia = 0; ia < existingAdminNames.length; ia++) {
+      if (newAdminNames.indexOf(existingAdminNames[ia]) < 0) {
+        await supabase.from('users').delete().eq('org_id', orgId).eq('name', existingAdminNames[ia]).eq('role', 'admin');
+      }
+    }
+    // Add/update admins
+    for (var ja = 0; ja < newAdmins.length; ja++) {
+      var adm = newAdmins[ja];
+      if (existingAdminNames.indexOf(adm.name) < 0) {
+        await supabase.from('users').insert({ org_id: orgId, name: adm.name, email: adm.email || '', role: 'admin', pass_hash: adm.passHash || '' });
+      } else {
+        await supabase.from('users').update({ pass_hash: adm.passHash || '' }).eq('org_id', orgId).eq('name', adm.name).eq('role', 'admin');
+      }
     }
   }
 
