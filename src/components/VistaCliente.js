@@ -2,6 +2,13 @@
 import { useState } from "react";
 import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcAllActuals, calcContractTotal, makeKey, daysInMonth } from "./shared";
 
+var GIORNI_SETT=["Domenica","Lunedi'","Martedi'","Mercoledi'","Giovedi'","Venerdi'","Sabato"];
+
+function formatDateExt(year,month,day){
+  var d=new Date(year,month,day);var dow=d.getDay();
+  return GIORNI_SETT[dow]+" "+day+" "+MESI[month];
+}
+
 export function VistaCliente(p){
   var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month;
   var ss=useState(""),sel=ss[0],setSel=ss[1];
@@ -67,7 +74,7 @@ export function VistaCliente(p){
             <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Presenza</th>
             <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Consulente</th></tr></thead>
           <tbody>{dayRows.map(function(r,i){return<tr key={i}>
-            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk}}>{r.day} {MESI[month].substring(0,3)}</td>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk}}>{formatDateExt(year,month,r.day)}</td>
             <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",color:CL.greyMd}}>{r.presenza}</td>
             <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.red}}>{r.name}</td></tr>;})}</tbody>
         </table></div></div>);}()}
