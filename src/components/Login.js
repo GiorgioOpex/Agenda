@@ -1,10 +1,10 @@
 "use client";
 import { useState } from "react";
-import { CL, FONT, sI, sIPw, sB, Logo } from "./shared";
+import { CL, FONT, sI, sIPw, sB, Logo, loadAll } from "./shared";
 import { supabase } from "../lib/supabase";
 
 export function LoginScreen(p){
-  var d=p.data,oC=p.onLoginC,oA=p.onLoginA;
+  var d=p.data,oC=p.onLoginC,oA=p.onLoginA,oRefresh=p.onDataChange;
   var ms=useState("consultant"),mode=ms[0],setMode=ms[1];
   var ss=useState(d.consultants[0]||""),selCons=ss[0],setSelCons=ss[1];
   var sa=useState(d.admins&&d.admins[0]?d.admins[0].name:""),selAdm=sa[0],setSelAdm=sa[1];
@@ -24,9 +24,8 @@ export function LoginScreen(p){
     }
   }
 
-  function getFlags(){
-    var name=mode==="consultant"?selCons:selAdm;
-    var flags=(d.userFlags||{})[name]||{};
+  function getFlagsFromData(freshData, name){
+    var flags=(freshData.userFlags||{})[name]||{};
     return {
       mustChangePassword: flags.mustChangePassword===true,
       privacyAccepted: flags.privacyAccepted===true
@@ -41,7 +40,13 @@ export function LoginScreen(p){
     try{
       var res=await supabase.auth.signInWithPassword({email:email.toLowerCase(),password:pw});
       if(res.error){setErr("Password errata");setPw("");setLoading(false);return;}
-      var flags=getFlags();
+
+      // Ricarica i flag freschi dal server (in caso un admin abbia appena resettato la password)
+      var name=mode==="consultant"?selCons:selAdm;
+      var freshData=await loadAll();
+      if(oRefresh)oRefresh(freshData);
+      var flags=getFlagsFromData(freshData, name);
+
       var needsFirstLogin = flags.mustChangePassword || !flags.privacyAccepted;
       var loginInfo = {
         needsFirstLogin: needsFirstLogin,
