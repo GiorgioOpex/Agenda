@@ -1,6 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://shgxypwmaxloyzemdbcw.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoZ3h5cHdtYXhsb3l6ZW1kYmN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDI0MzEsImV4cCI6MjA5MjI3ODQzMX0.rxx8scqTZw2-c5xHslxXKOJJpR59IjPoMx5gzlHUWXQ';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  // Stampa in console (server e client) ma non blocca: in prod le env vars
+  // sono iniettate al build, in dev avvisa lo sviluppatore.
+  // eslint-disable-next-line no-console
+  console.error("[supabase client] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY env vars");
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

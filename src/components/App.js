@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { MESI, CL, FONT, loadAll, saveAll, Logo, Legenda, makeKey, daysInMonth, firstDow, fmtNum } from "./shared";
+import { MESI, CL, FONT, loadAll, saveAll, Logo, Legenda, makeKey, daysInMonth, firstDow, fmtNum, sIPw, sB, sO, validatePassword, passwordStrength } from "./shared";
 import { LoginScreen } from "./Login";
+import { FirstLogin } from "./FirstLogin";
+import { supabase } from "../lib/supabase";
 import { Calendar } from "./Calendar";
 import { DayModal } from "./DayModal";
 import { Panoramica } from "./Panoramica";
@@ -9,7 +11,7 @@ import { VistaCliente } from "./VistaCliente";
 import { Consuntivo } from "./Consuntivo";
 import { Dashboard } from "./Dashboard";
 import { Impostazioni } from "./Impostazioni";
-
+ 
 export default function App(){
   var ds=useState(null),data=ds[0],sData=ds[1];var ls=useState(true),loading=ls[0],sLoad=ls[1];
   var gs=useState(false),logged=gs[0],sLog=gs[1];var ia=useState(false),isAdm=ia[0],sAdm=ia[1];
@@ -17,10 +19,66 @@ export default function App(){
   var ys=useState(new Date().getFullYear()),yr=ys[0],sYr=ys[1];var ms=useState(new Date().getMonth()),mo=ms[0],sMo=ms[1];
   var es=useState(null),editDay=es[0],sED=es[1];var ss=useState(false),showS=ss[0],sSS=ss[1];
   var rs=useState(false),showReport=rs[0],sShowReport=rs[1];
-  useEffect(function(){loadAll().then(function(d){sData(d);sLoad(false);});},[]);
-  function loginC(n){sUser(n);sAdm(false);sLog(true);sView("personal");}
-  function loginA(n){sUser(n);sAdm(true);sLog(true);sView("admin");}
-  function logout(){sLog(false);sAdm(false);sUser("");sView("personal");sSS(false);}
+  var cps=useState(false),showChPw=cps[0],sShowChPw=cps[1];
+  var fl=useState(null),firstLogin=fl[0],sFirstLogin=fl[1];
+ 
+  useEffect(function(){
+    // Caricamento iniziale
+    loadAll().then(function(d){sData(d);sLoad(false);});
+ 
+    // === Gestione PASSWORD_RECOVERY ===
+    // Quando l'utente clicca il link "password dimenticata" ricevuto via mail,
+    // Supabase apre una sessione temporanea e firea questo evento.
+    // Forziamo il modale FirstLogin per farlo impostare una nuova password.
+    var sub = supabase.auth.onAuthStateChange(function(event, session){
+      if(event !== "PASSWORD_RECOVERY") return;
+      if(!session || !session.user || !session.user.email) return;
+      var email = session.user.email.toLowerCase();
+      loadAll().then(function(d){
+        sData(d);
+        var foundName = null, foundIsAdm = false;
+        var ce = d.consultantEmails || {};
+        Object.keys(ce).forEach(function(name){
+          if(ce[name] && String(ce[name]).toLowerCase() === email){ foundName = name; }
+        });
+        if(!foundName && d.admins){
+          d.admins.forEach(function(a){
+            if(a.email && String(a.email).toLowerCase() === email){ foundName = a.name; foundIsAdm = true; }
+          });
+        }
+        if(foundName){
+          var flags = (d.userFlags || {})[foundName] || {};
+          sUser(foundName);
+          sAdm(foundIsAdm);
+          sLog(true);
+          sView(foundIsAdm ? "admin" : "personal");
+          sFirstLogin({needsPw: true, needsPrivacy: !flags.privacyAccepted});
+        }
+      });
+    });
+ 
+    return function(){
+      try{
+        if(sub && sub.data && sub.data.subscription) sub.data.subscription.unsubscribe();
+      }catch(e){}
+    };
+  },[]);
+ 
+  function loginC(n,info){
+    sUser(n);sAdm(false);sLog(true);sView("personal");
+    if(info && info.needsFirstLogin){sFirstLogin({needsPw:info.needsPw,needsPrivacy:info.needsPrivacy});}
+  }
+  function loginA(n,info){
+    sUser(n);sAdm(true);sLog(true);sView("admin");
+    if(info && info.needsFirstLogin){sFirstLogin({needsPw:info.needsPw,needsPrivacy:info.needsPrivacy});}
+  }
+  function logout(){
+    try{supabase.auth.signOut();}catch(e){}
+    sLog(false);sAdm(false);sUser("");sView("personal");sSS(false);sFirstLogin(null);
+  }
+  async function reloadDataAfterFirstLogin(){
+    var fresh=await loadAll();sData(fresh);sFirstLogin(null);
+  }
   var hSD=useCallback(async function(dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};if(val)ent[user][dk]=val;else delete ent[user][dk];nd.entries=ent;sData(nd);sED(null);await saveAll(nd);},[data,user]);
   var hMV=useCallback(async function(fromDk,toDk,fromEntry,half){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};
     var src=ent[user][fromDk];if(!src)return;var dst=ent[user][toDk]||{};
@@ -35,6 +93,7 @@ export default function App(){
   function nM(){if(mo===11){sMo(0);sYr(function(y){return y+1;});}else sMo(function(m){return m+1;});}
   if(loading||!data)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:FONT,color:CL.red,fontSize:18}}>Caricamento...</div>;
   if(!logged)return<LoginScreen data={data} onLoginC={loginC} onLoginA={loginA} onDataChange={sData}/>;
+  if(firstLogin)return(<><LoginScreen data={data} onLoginC={function(){}} onLoginA={function(){}} onDataChange={sData}/><FirstLogin user={user} needsPw={firstLogin.needsPw} needsPrivacy={firstLogin.needsPrivacy} onComplete={reloadDataAfterFirstLogin} onLogout={logout}/></>);
   var aV=[["admin","Panoramica"],["client","Per Cliente"],["report","Per Consulente"],["dashboard","Dashboard"]];
   return(<div style={{minHeight:"100vh",background:"linear-gradient(135deg,#f9f3f3 0%,"+CL.greyLt+" 100%)",fontFamily:FONT}}>
     <div style={{background:"linear-gradient(135deg,"+CL.greyDk+" 0%,"+CL.grey+" 40%,"+CL.redDk+" 100%)",padding:"14px 24px",color:"#fff"}}>
@@ -43,6 +102,7 @@ export default function App(){
         <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
           {isAdm&&aV.map(function(v){return<button key={v[0]} onClick={function(){sView(v[0]);}} style={{padding:"7px 14px",borderRadius:8,border:"none",fontSize:12,fontWeight:view===v[0]?700:400,background:view===v[0]?"rgba(255,255,255,.22)":"rgba(255,255,255,.08)",color:"#fff",cursor:"pointer",fontFamily:FONT}}>{v[1]}</button>;})}
           {isAdm&&<button onClick={function(){sSS(true);}} style={{padding:"7px 12px",borderRadius:8,border:"1px solid rgba(255,255,255,.25)",background:"transparent",color:"#fff",fontSize:12,cursor:"pointer",fontFamily:FONT}}>Impostazioni</button>}
+          {!isAdm&&<button onClick={function(){sShowChPw(true);}} style={{padding:"7px 12px",borderRadius:8,border:"1px solid rgba(255,255,255,.25)",background:"transparent",color:"#fff",fontSize:12,cursor:"pointer",fontFamily:FONT}}>Cambia Password</button>}
           <button onClick={logout} style={{padding:"7px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,100,100,.15)",color:"#ffcccc",fontSize:11,cursor:"pointer",fontFamily:FONT}}>Esci</button></div></div></div>
     <div style={{maxWidth:960,margin:"0 auto",padding:"20px 16px 40px"}}>
       {view!=="dashboard"&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",marginBottom:16,gap:12}}>
@@ -114,5 +174,61 @@ export default function App(){
       {isAdm&&view==="report"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Consulente - {MESI[mo]} {yr}</h3><Consuntivo entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} year={yr} month={mo} onSaveEntry={hSE}/></div>}
       {isAdm&&view==="dashboard"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Dashboard - {yr}</h3><Dashboard data={data} year={yr}/></div>}</div>
     {editDay&&<DayModal dk={editDay} entry={(data.entries[user]||{})[editDay]} clients={data.clients} clientEndDates={data.clientEndDates} onSave={hSD} onClose={function(){sED(null);}}/>}
-    {showS&&<Impostazioni data={data} onSave={hSS} onClose={function(){sSS(false);}}/>}</div>);
+    {showS&&<Impostazioni data={data} onSave={hSS} onClose={function(){sSS(false);}}/>}
+    {showChPw&&<ChangePassword user={user} consultantEmails={data.consultantEmails} onClose={function(){sShowChPw(false);}}/>}</div>);
 }
+ 
+function ChangePassword(p){
+  var user=p.user,emails=p.consultantEmails||{},onClose=p.onClose;
+  var os=useState(""),oldPw=os[0],sOldPw=os[1];
+  var ns=useState(""),newPw=ns[0],sNewPw=ns[1];
+  var cs=useState(""),confPw=cs[0],sConfPw=cs[1];
+  var ms=useState(""),msg=ms[0],sMsg=ms[1];
+  var ls=useState(false),loading=ls[0],sLoading=ls[1];
+  var es=useState(false),isErr=es[0],sIsErr=es[1];
+ 
+  async function doChange(){
+    if(!oldPw.trim()){sMsg("Inserisci la password attuale");sIsErr(true);return;}
+    var pwErr=validatePassword(newPw);
+    if(pwErr){sMsg(pwErr);sIsErr(true);return;}
+    if(newPw!==confPw){sMsg("Le password non coincidono");sIsErr(true);return;}
+    if(newPw===oldPw){sMsg("La nuova password deve essere diversa da quella attuale");sIsErr(true);return;}
+    sLoading(true);sMsg("");
+    var email=emails[user]||"";
+    if(!email){sMsg("Nessuna email associata");sIsErr(true);sLoading(false);return;}
+    try{
+      var res=await supabase.auth.signInWithPassword({email:email.toLowerCase(),password:oldPw});
+      if(res.error){sMsg("Password attuale errata");sIsErr(true);sOldPw("");sLoading(false);return;}
+      var upd=await supabase.auth.updateUser({password:newPw});
+      if(upd.error){sMsg("Errore: "+upd.error.message);sIsErr(true);}
+      else{sMsg("Password modificata con successo!");sIsErr(false);sOldPw("");sNewPw("");sConfPw("");}
+    }catch(e){sMsg("Errore di connessione");sIsErr(true);}
+    sLoading(false);
+  }
+ 
+  var strength=passwordStrength(newPw);
+  var strengthColors=["#e53935","#ef6c00","#fbc02d","#7cb342","#2E7D32"];
+  var strengthLabels=["Troppo debole","Debole","Sufficiente","Buona","Ottima"];
+ 
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
+    <div onClick={function(e){e.stopPropagation();}} style={{background:"#fff",borderRadius:16,padding:28,width:400,maxWidth:"92vw",boxShadow:"0 20px 60px rgba(0,0,0,.2)",fontFamily:FONT}}>
+      <h3 style={{margin:"0 0 20px",fontSize:18,color:CL.greyDk}}>Cambia Password</h3>
+      <p style={{fontSize:13,color:CL.greyMd,marginBottom:16}}>{user}</p>
+      <input type="password" value={oldPw} onChange={function(e){sOldPw(e.target.value);sMsg("");}} placeholder="Password attuale" style={Object.assign({},sIPw,{width:"100%",marginBottom:10})}/>
+      <input type="password" value={newPw} onChange={function(e){sNewPw(e.target.value);sMsg("");}} placeholder="Nuova password (min. 8: maiusc/minusc/num/speciale)" style={Object.assign({},sIPw,{width:"100%",marginBottom:6})}/>
+      {newPw && <div style={{marginBottom:8}}>
+        <div style={{display:"flex",gap:3,marginBottom:4}}>
+          {[0,1,2,3].map(function(i){return<div key={i} style={{flex:1,height:4,borderRadius:2,background:i<strength?strengthColors[strength]:"#eee"}}/>;})}
+        </div>
+        <p style={{margin:0,fontSize:11,color:strengthColors[strength],fontWeight:600}}>{strengthLabels[strength]}</p>
+      </div>}
+      <input type="password" value={confPw} onChange={function(e){sConfPw(e.target.value);sMsg("");}} onKeyDown={function(e){if(e.key==="Enter")doChange();}} placeholder="Conferma nuova password" style={Object.assign({},sIPw,{width:"100%",marginBottom:6,marginTop:4})}/>
+      {msg&&<p style={{margin:"8px 0 0",fontSize:13,color:isErr?CL.red:"#2E7D32",fontWeight:600}}>{msg}</p>}
+      <div style={{display:"flex",gap:10,marginTop:18}}>
+        <button onClick={doChange} disabled={loading} style={Object.assign({},sB,{flex:1,padding:"12px 0",opacity:loading?0.5:1})}>{loading?"Salvataggio...":"Salva"}</button>
+        <button onClick={onClose} style={sO}>Chiudi</button>
+      </div>
+    </div>
+  </div>);
+}
+ 

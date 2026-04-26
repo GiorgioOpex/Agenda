@@ -5,11 +5,36 @@ export var MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio
 export var GIORNI=["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
 export var CL={red:"#C41E2A",redDk:"#9B1520",grey:"#3C3C3C",greyDk:"#2A2A2A",greyMd:"#555",greyLt:"#F2F2F2"};
 export var STATI={client:{bg:CL.red,text:"#fff",label:"Cliente OPEX"},busy:{bg:CL.grey,text:"#fff",label:"Altro impegno"},commercial:{bg:"#FF8F00",text:"#fff",label:"Commerciale OPEX"},training:{bg:"#7B1FA2",text:"#fff",label:"Formazione"}};
-export var CLIENT_COLORS=["#C41E2A","#1565C0","#2E7D32","#E65100","#6A1B9A","#00838F","#AD1457","#F9A825","#4E342E","#37474F","#00695C","#283593","#BF360C","#1B5E20","#4A148C","#006064","#D84315","#0277BD","#558B2F","#7B1FA2","#00796B","#C2185B","#F57F17","#3E2723","#455A64","#004D40","#1A237E","#E53935","#43A047","#8E24AA","#039BE5","#795548"];
+export var CLIENT_COLORS=["#E53935","#1E88E5","#43A047","#FB8C00","#8E24AA","#00ACC1","#D81B60","#FFB300","#5E35B1","#00897B","#F4511E","#3949AB","#7CB342","#C62828","#0288D1","#6D4C41","#26A69A","#EC407A","#5C6BC0","#2E7D32","#EF6C00","#AB47BC","#00838F","#FDD835","#AD1457","#1565C0","#4CAF50","#FF7043","#7B1FA2","#009688","#E91E63","#2196F3"];
 export var FONT="'DM Sans',sans-serif";
 export var sI={padding:"9px 12px",borderRadius:8,border:"1px solid #ddd",fontSize:14,fontFamily:FONT,flex:1,minWidth:0,boxSizing:"border-box",textTransform:"uppercase"};
+export var sIPw={padding:"9px 12px",borderRadius:8,border:"1px solid #ddd",fontSize:14,fontFamily:FONT,flex:1,minWidth:0,boxSizing:"border-box",textTransform:"none"};
 export var sB={padding:"9px 16px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT,whiteSpace:"nowrap"};
 export var sO={padding:"9px 16px",borderRadius:8,border:"1px solid #ddd",background:"#fff",color:"#555",fontSize:14,cursor:"pointer",fontFamily:FONT};
+
+// === Password policy (sicurezza/NIS2) ===
+export var DEFAULT_PASSWORD="Opex2026";
+
+export function validatePassword(pw){
+  if(!pw||pw.length<8)return"La password deve avere almeno 8 caratteri";
+  if(pw.length>72)return"La password non puo' superare 72 caratteri";
+  if(!/[A-Z]/.test(pw))return"Serve almeno una lettera maiuscola";
+  if(!/[a-z]/.test(pw))return"Serve almeno una lettera minuscola";
+  if(!/[0-9]/.test(pw))return"Serve almeno un numero";
+  if(!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pw))return"Serve almeno un carattere speciale (!@#$% ecc.)";
+  if(pw===DEFAULT_PASSWORD)return"Non puoi usare la password di default";
+  return"";
+}
+
+export function passwordStrength(pw){
+  if(!pw)return 0;
+  var s=0;
+  if(pw.length>=8)s++;
+  if(pw.length>=12)s++;
+  if(/[A-Z]/.test(pw)&&/[a-z]/.test(pw))s++;
+  if(/[0-9]/.test(pw)&&/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pw))s++;
+  return s;
+}
 
 export function getClientColor(clients,clientName){
   if(!clientName||!clients)return CL.grey;
@@ -61,7 +86,7 @@ export function calcContractTotal(budget,endDate){
   if(end<=now)return 0;var months=0;var d=new Date(now.getFullYear(),now.getMonth(),1);
   while(d<=end){months++;d.setMonth(d.getMonth()+1);}return budget*months;}
 
-export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},consultantEmails:{},entries:{},admins:[],targetMensile:0};
+export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},consultantEmails:{},entries:{},admins:[],targetMensile:0,userFlags:{}};
 
 export async function loadAll(){try{var res=await fetch("/api/data?t="+Date.now());if(!res.ok)return Object.assign({},EMPTY);var d=await res.json();return Object.assign({},EMPTY,d);}catch(e){return Object.assign({},EMPTY);}}
 export async function saveAll(fd){try{var res=await fetch("/api/data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(fd)});var r=await res.json();return r.ok;}catch(e){return false;}}

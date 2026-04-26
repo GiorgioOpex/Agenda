@@ -31,7 +31,7 @@ export function Calendar(p){
     if(copyData){
       if(!isSlotFree(en,"am")||!isSlotFree(en,"pm")){alert("La destinazione e' gia' occupata");return;}
       if(onCopy)onCopy(key,copyData);
-      sCopyData(null);return;}
+      return;}
     if(!hasImpegno(en)){oDC(key);return;}
     var rect=e.currentTarget.getBoundingClientRect();
     sMenu({key:key,entry:en,x:rect.left,y:rect.bottom+4});
@@ -53,8 +53,8 @@ export function Calendar(p){
       <button onClick={cancelDrag} style={{padding:"3px 10px",borderRadius:6,border:"1px solid #ccc",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:FONT}}>Annulla</button>
     </div>}
     {copyData&&<div style={{padding:"6px 12px",marginBottom:8,background:"#E8F5E9",borderRadius:8,border:"1px solid #A5D6A7",fontSize:12,color:CL.greyDk,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-      <span>Giornata copiata — clicca su un giorno vuoto per incollare</span>
-      <button onClick={cancelCopy} style={{padding:"3px 10px",borderRadius:6,border:"1px solid #ccc",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:FONT}}>Annulla</button>
+      <span>Giornata copiata — clicca sui giorni vuoti per incollare (multiplo)</span>
+      <button onClick={cancelCopy} style={{padding:"3px 10px",borderRadius:6,border:"1px solid #ccc",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:FONT}}>Fine</button>
     </div>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>{cells.map(function(d,i){
       if(!d)return<div key={"e"+i}/>;var key=makeKey(year,month,d),en=entries[key];
