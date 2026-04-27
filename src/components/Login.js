@@ -5,9 +5,12 @@ import { supabase } from "../lib/supabase";
 
 export function LoginScreen(p){
   var d=p.data,oC=p.onLoginC,oA=p.onLoginA,oRefresh=p.onDataChange;
+  // Consulenti e admin ordinati alfabeticamente per la visualizzazione nelle tendine
+  var consultantsSorted=(d.consultants||[]).slice().sort(function(a,b){return a.localeCompare(b,'it');});
+  var adminsSorted=(d.admins||[]).slice().sort(function(a,b){return a.name.localeCompare(b.name,'it');});
   var ms=useState("consultant"),mode=ms[0],setMode=ms[1];
-  var ss=useState(d.consultants[0]||""),selCons=ss[0],setSelCons=ss[1];
-  var sa=useState(d.admins&&d.admins[0]?d.admins[0].name:""),selAdm=sa[0],setSelAdm=sa[1];
+  var ss=useState(consultantsSorted[0]||""),selCons=ss[0],setSelCons=ss[1];
+  var sa=useState(adminsSorted[0]?adminsSorted[0].name:""),selAdm=sa[0],setSelAdm=sa[1];
   var ps=useState(""),pw=ps[0],setPw=ps[1];
   var es=useState(""),err=es[0],setErr=es[1];
   var ls=useState(false),loading=ls[0],setLoading=ls[1];
@@ -87,8 +90,8 @@ export function LoginScreen(p){
       <p style={{fontSize:13,color:CL.greyMd,marginBottom:16}}>Seleziona il tuo nome e clicca "Invia". Riceverai un'email per reimpostare la password.</p>
       <label style={{fontSize:12,fontWeight:600,color:CL.greyMd,display:"block",marginBottom:6}}>Seleziona il tuo nome</label>
       <select value={mode==="consultant"?selCons:selAdm} onChange={function(e){if(mode==="consultant")setSelCons(e.target.value);else setSelAdm(e.target.value);setForgotMsg("");}} style={Object.assign({},sI,{width:"100%",padding:"12px 14px",border:"2px solid "+CL.red,marginBottom:14,fontWeight:600})}>
-        {d.consultants.map(function(c){return<option key={c} value={c}>{c}</option>;})}
-        {d.admins.map(function(a){return<option key={"a_"+a.name} value={a.name}>{a.name} (Admin)</option>;})}
+        {consultantsSorted.map(function(c){return<option key={c} value={c}>{c}</option>;})}
+        {adminsSorted.map(function(a){return<option key={"a_"+a.name} value={a.name}>{a.name} (Admin)</option>;})}
       </select>
       {forgotMsg&&<p style={{margin:"0 0 12px",fontSize:13,color:forgotMsg.startsWith("Email")?"#2E7D32":CL.red,fontWeight:600}}>{forgotMsg}</p>}
       <button onClick={doReset} disabled={loading} style={Object.assign({},sB,{width:"100%",padding:"13px 0",fontSize:15,opacity:loading?0.5:1})}>{loading?"Invio in corso...":"Invia email di reset"}</button>
@@ -104,16 +107,16 @@ export function LoginScreen(p){
         <button onClick={function(){setMode("consultant");setErr("");setPw("");}} style={{flex:1,padding:"10px 0",border:"none",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:FONT,background:mode==="consultant"?CL.red:"#fff",color:mode==="consultant"?"#fff":CL.red}}>Consulente</button>
         <button onClick={function(){setMode("admin");setErr("");setPw("");}} style={{flex:1,padding:"10px 0",border:"none",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:FONT,background:mode==="admin"?CL.red:"#fff",color:mode==="admin"?"#fff":CL.red}}>Admin</button>
       </div>
-      {mode==="consultant"&&(d.consultants.length===0?<p style={{textAlign:"center",color:"#888",fontSize:14}}>Nessun consulente configurato.</p>:<div>
+      {mode==="consultant"&&(consultantsSorted.length===0?<p style={{textAlign:"center",color:"#888",fontSize:14}}>Nessun consulente configurato.</p>:<div>
         <label style={{fontSize:12,fontWeight:600,color:CL.greyMd,display:"block",marginBottom:6}}>Seleziona consulente</label>
-        <select value={selCons} onChange={function(e){setSelCons(e.target.value);setErr("");}} style={Object.assign({},sI,{width:"100%",padding:"12px 14px",border:"2px solid "+CL.red,marginBottom:14,fontWeight:600})}>{d.consultants.map(function(c){return<option key={c} value={c}>{c}</option>;})}</select>
+        <select value={selCons} onChange={function(e){setSelCons(e.target.value);setErr("");}} style={Object.assign({},sI,{width:"100%",padding:"12px 14px",border:"2px solid "+CL.red,marginBottom:14,fontWeight:600})}>{consultantsSorted.map(function(c){return<option key={c} value={c}>{c}</option>;})}</select>
         <input type="password" value={pw} onChange={function(e){setPw(e.target.value);setErr("");}} onKeyDown={function(e){if(e.key==="Enter")doLogin();}} placeholder="Password" style={Object.assign({},sIPw,{width:"100%",marginBottom:10})}/>
         {err&&<p style={{margin:"8px 0 0",fontSize:13,color:CL.red,fontWeight:600}}>{err}</p>}
         <button onClick={doLogin} disabled={loading} style={Object.assign({},sB,{width:"100%",padding:"13px 0",fontSize:15,marginTop:12,opacity:loading?0.5:1})}>{loading?"Accesso in corso...":"Accedi al mio calendario"}</button>
         <div style={{textAlign:"center",marginTop:10}}><button onClick={function(){setForgot(true);}} style={{background:"none",border:"none",color:CL.greyMd,fontSize:12,cursor:"pointer",fontFamily:FONT,textDecoration:"underline"}}>Password dimenticata?</button></div></div>)}
-      {mode==="admin"&&(!d.admins||d.admins.length===0?<p style={{textAlign:"center",color:"#888",fontSize:14}}>Nessun admin configurato.</p>:<div>
+      {mode==="admin"&&(adminsSorted.length===0?<p style={{textAlign:"center",color:"#888",fontSize:14}}>Nessun admin configurato.</p>:<div>
         <label style={{fontSize:12,fontWeight:600,color:CL.greyMd,display:"block",marginBottom:6}}>Seleziona amministratore</label>
-        <select value={selAdm} onChange={function(e){setSelAdm(e.target.value);setErr("");}} style={Object.assign({},sI,{width:"100%",padding:"12px 14px",border:"2px solid "+CL.red,marginBottom:14,fontWeight:600})}>{d.admins.map(function(a){return<option key={a.name} value={a.name}>{a.name}</option>;})}</select>
+        <select value={selAdm} onChange={function(e){setSelAdm(e.target.value);setErr("");}} style={Object.assign({},sI,{width:"100%",padding:"12px 14px",border:"2px solid "+CL.red,marginBottom:14,fontWeight:600})}>{adminsSorted.map(function(a){return<option key={a.name} value={a.name}>{a.name}</option>;})}</select>
         <input type="password" value={pw} onChange={function(e){setPw(e.target.value);setErr("");}} onKeyDown={function(e){if(e.key==="Enter")doLogin();}} placeholder="Password" style={Object.assign({},sIPw,{width:"100%",marginBottom:10})}/>
         {err&&<p style={{margin:"8px 0 0",fontSize:13,color:CL.red,fontWeight:600}}>{err}</p>}
         <button onClick={doLogin} disabled={loading} style={Object.assign({},sB,{width:"100%",padding:"13px 0",fontSize:15,marginTop:12,opacity:loading?0.5:1})}>{loading?"Accesso in corso...":"Accedi"}</button>

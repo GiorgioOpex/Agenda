@@ -8,14 +8,25 @@ export function Panoramica(p){
   var fs=useState(null),filter=fs[0],sFilter=fs[1];
 
   var allUsed={},hasBusy=false,hasComm=false,hasTrain=false,totCliAll=0,totBusyAll=0,totCommAll=0,totTrainAll=0;
-  cons.forEach(function(name){var cE=entries[name]||{};
+  // Mappa nome consulente -> totale giornate consulenza (status="client") nel mese corrente
+  // Usata per ordinare i consulenti dall'alto in basso in ordine decrescente.
+  var totCliPerCons={};
+  cons.forEach(function(name){var cE=entries[name]||{};var tCli=0;
     for(var d=1;d<=days;d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
       ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
-        if(x.status==="client"&&x.client){allUsed[x.client]=true;totCliAll+=.5;}
+        if(x.status==="client"&&x.client){allUsed[x.client]=true;totCliAll+=.5;tCli+=.5;}
         if(x.status==="busy"){hasBusy=true;totBusyAll+=.5;}
         if(x.status==="commercial"){hasComm=true;totCommAll+=.5;}
-        if(x.status==="training"){hasTrain=true;totTrainAll+=.5;}});}});
+        if(x.status==="training"){hasTrain=true;totTrainAll+=.5;}});}
+    totCliPerCons[name]=tCli;});
   var usedList=Object.keys(allUsed);
+
+  // Consulenti ordinati per giornate consulenza decrescenti, alfabetico come tie-breaker
+  var consSorted=cons.slice().sort(function(a,b){
+    var diff=(totCliPerCons[b]||0)-(totCliPerCons[a]||0);
+    if(diff!==0)return diff;
+    return a.localeCompare(b,'it');
+  });
 
   var workDays=0;
   for(var d=1;d<=days;d++){if((fd+d-1)%7<5)workDays++;}
@@ -67,7 +78,7 @@ export function Panoramica(p){
       <th style={{padding:"7px 5px",borderBottom:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:"#7B1FA2",fontSize:11}}>Form.</th>
       <th style={{padding:"7px 5px",borderBottom:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:"#2E7D32",fontSize:11}}>Libere</th>
     </tr></thead>
-    <tbody>{cons.map(function(name){var cE=entries[name]||{},totCli=0,totBusy=0,totComm=0,totTrain=0;
+    <tbody>{consSorted.map(function(name){var cE=entries[name]||{},totCli=0,totBusy=0,totComm=0,totTrain=0;
       var tds=Array.from({length:days},function(_,i){var key=makeKey(year,month,i+1),e=cE[key],isSun=(fd+i)%7===6,isSat=(fd+i)%7===5;
         var amBg=getFilteredBg(e&&e.am?e.am:null);
         var pmBg=getFilteredBg(e&&e.pm?e.pm:null);

@@ -74,7 +74,7 @@ export default function App(){
   }
   function logout(){
     try{supabase.auth.signOut();}catch(e){}
-    sLog(false);sAdm(false);sUser("");sView("personal");sSS(false);sFirstLogin(null);
+    sLog(false);sAdm(false);sUser("");sView("personal");sSS(false);sFirstLogin(null);sShowReport(false);
   }
   async function reloadDataAfterFirstLogin(){
     var fresh=await loadAll();sData(fresh);sFirstLogin(null);
@@ -89,8 +89,10 @@ export default function App(){
   var hSS=useCallback(async function(cl,ll,al,budgets,endDates,targetM,emails){var nd=Object.assign({},data,{consultants:cl,clients:ll,admins:al,clientBudgets:budgets,clientEndDates:endDates,targetMensile:targetM,consultantEmails:emails||{}});sData(nd);sSS(false);await saveAll(nd);},[data]);
   var hSE=useCallback(async function(consultantName,dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[consultantName])ent[consultantName]={};if(val)ent[consultantName][dk]=val;else delete ent[consultantName][dk];nd.entries=ent;sData(nd);await saveAll(nd);},[data]);
   var hCP=useCallback(async function(dk,entryData){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};ent[user][dk]=JSON.parse(JSON.stringify(entryData));nd.entries=ent;sData(nd);await saveAll(nd);},[data,user]);
-  function pM(){if(mo===0){sMo(11);sYr(function(y){return y-1;});}else sMo(function(m){return m-1;});}
-  function nM(){if(mo===11){sMo(0);sYr(function(y){return y+1;});}else sMo(function(m){return m+1;});}
+  // Cambio mese: chiude sempre l'eventuale Report aperto, in modo che il consulente
+  // debba riaprirlo esplicitamente nel nuovo mese (e solo se mese corrente o passato).
+  function pM(){sShowReport(false);if(mo===0){sMo(11);sYr(function(y){return y-1;});}else sMo(function(m){return m-1;});}
+  function nM(){sShowReport(false);if(mo===11){sMo(0);sYr(function(y){return y+1;});}else sMo(function(m){return m+1;});}
   if(loading||!data)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:FONT,color:CL.red,fontSize:18}}>Caricamento...</div>;
   if(!logged)return<LoginScreen data={data} onLoginC={loginC} onLoginA={loginA} onDataChange={sData}/>;
   if(firstLogin)return(<><LoginScreen data={data} onLoginC={function(){}} onLoginA={function(){}} onDataChange={sData}/><FirstLogin user={user} needsPw={firstLogin.needsPw} needsPrivacy={firstLogin.needsPrivacy} onComplete={reloadDataAfterFirstLogin} onLogout={logout}/></>);
@@ -231,4 +233,3 @@ function ChangePassword(p){
     </div>
   </div>);
 }
- 
