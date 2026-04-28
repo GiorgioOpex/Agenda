@@ -22,6 +22,15 @@ export default function App(){
   var cps=useState(false),showChPw=cps[0],sShowChPw=cps[1];
   var fl=useState(null),firstLogin=fl[0],sFirstLogin=fl[1];
  
+  // Riallinea sempre lo stato di mese/anno al "qui e ora" del client.
+  // Chiamata sia all'ingresso (loginC/loginA, PASSWORD_RECOVERY) sia all'uscita,
+  // cosi' qualunque consulente o admin trova al login la schermata del mese in corso.
+  function resetToCurrentMonth(){
+    var now=new Date();
+    sYr(now.getFullYear());
+    sMo(now.getMonth());
+  }
+
   useEffect(function(){
     // Caricamento iniziale
     loadAll().then(function(d){sData(d);sLoad(false);});
@@ -52,6 +61,7 @@ export default function App(){
           sAdm(foundIsAdm);
           sLog(true);
           sView(foundIsAdm ? "admin" : "personal");
+          resetToCurrentMonth();
           sFirstLogin({needsPw: true, needsPrivacy: !flags.privacyAccepted});
         }
       });
@@ -65,16 +75,17 @@ export default function App(){
   },[]);
  
   function loginC(n,info){
-    sUser(n);sAdm(false);sLog(true);sView("personal");
+    sUser(n);sAdm(false);sLog(true);sView("personal");resetToCurrentMonth();sShowReport(false);
     if(info && info.needsFirstLogin){sFirstLogin({needsPw:info.needsPw,needsPrivacy:info.needsPrivacy});}
   }
   function loginA(n,info){
-    sUser(n);sAdm(true);sLog(true);sView("admin");
+    sUser(n);sAdm(true);sLog(true);sView("admin");resetToCurrentMonth();sShowReport(false);
     if(info && info.needsFirstLogin){sFirstLogin({needsPw:info.needsPw,needsPrivacy:info.needsPrivacy});}
   }
   function logout(){
     try{supabase.auth.signOut();}catch(e){}
     sLog(false);sAdm(false);sUser("");sView("personal");sSS(false);sFirstLogin(null);sShowReport(false);
+    resetToCurrentMonth();
   }
   async function reloadDataAfterFirstLogin(){
     var fresh=await loadAll();sData(fresh);sFirstLogin(null);
