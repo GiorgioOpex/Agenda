@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       </div>
 
       <h2 style={{color:"#C41E2A",fontSize:18,marginTop:28}}>1. Titolare del Trattamento</h2>
-      <p><strong>Opex Solutions S.r.l.</strong><br/>Via Lorenzo Balicco 61, 23900 Lecco (LC)<br/>P.IVA/C.F. 04154460135<br/>Email: amministrazione@opexsolutions.it</p>
+      <p><strong>Opex Solutions S.r.l.</strong><br/>Via Lorenzo Balicco 61, 23900 Lecco (LC)<br/>P.IVA/C.F. 04154460135<br/>Email: amministrazione@opexsolutions.it<br/>PEC: direzione@pec.opexsolutions.it</p>
 
       <h2 style={{color:"#C41E2A",fontSize:18,marginTop:28}}>2. Dati Personali Raccolti</h2>
       <p>L&apos;applicazione Agenda OPEX raccoglie:</p>
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
 
       <h2 style={{color:"#C41E2A",fontSize:18,marginTop:28}}>8. Diritti dell&apos;Interessato</h2>
       <p>L&apos;utente ha diritto di: accesso (art. 15), rettifica (art. 16), cancellazione (art. 17), limitazione (art. 18), portabilita&apos; (art. 20), opposizione (art. 21), reclamo al Garante Privacy (www.garanteprivacy.it).</p>
-      <p>Per esercitare i diritti: <strong>amministrazione@opexsolutions.it</strong></p>
+      <p>Per esercitare i diritti: <strong>amministrazione@opexsolutions.it</strong> &mdash; PEC: <strong>direzione@pec.opexsolutions.it</strong></p>
 
       <h2 style={{color:"#C41E2A",fontSize:18,marginTop:28}}>9. Sicurezza</h2>
       <p>Misure adottate: crittografia in transito e a riposo, password crittografate (bcrypt), controllo accessi basato su ruoli, Row Level Security, backup automatici.</p>
