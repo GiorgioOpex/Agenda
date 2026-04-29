@@ -26,7 +26,7 @@ export default function CookiePage() {
       <p>E&apos; possibile gestire i cookie tramite le impostazioni del browser. La disabilitazione dei cookie tecnici potrebbe compromettere il funzionamento dell&apos;applicazione.</p>
 
       <h2 style={{color:"#C41E2A",fontSize:18,marginTop:28}}>5. Contatti</h2>
-      <p>Per domande: <strong>amministrazione@opexsolutions.it</strong></p>
+      <p>Per domande: <strong>amministrazione@opexsolutions.it</strong><br/>PEC: <strong>direzione@pec.opexsolutions.it</strong></p>
 
       <div style={{textAlign:"center",marginTop:40,paddingTop:20,borderTop:"1px solid #eee"}}>
         <p style={{color:"#888",fontSize:12}}>Opex Solutions S.r.l. — Via Lorenzo Balicco 61, 23900 Lecco (LC)</p>
