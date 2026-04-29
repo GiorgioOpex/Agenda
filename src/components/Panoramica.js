@@ -2,6 +2,11 @@
 import { useState } from "react";
 import { CL, FONT, makeKey, daysInMonth, firstDow, fmtNum, getHalfBg, getClientColor, getUsedClients } from "./shared";
 
+// Colore dedicato a "Altro impegno" e "Commerciale OPEX": nero pieno.
+// Riservato a queste due categorie e MAI usato per i clienti (la palette
+// CLIENT_COLORS in shared.js non contiene nero, quindi non serve filtrare).
+var BUSY_COMM_BG="#000";
+
 export function Panoramica(p){
   var entries=p.entries,cons=p.consultants,clients=p.clients||[],cBud=p.clientBudgets||{},year=p.year,month=p.month;
   var days=daysInMonth(year,month),fd=firstDow(year,month);
@@ -42,12 +47,33 @@ export function Panoramica(p){
     return half.status==="client"&&half.client===filter;
   }
 
+  // Override locale di getHalfBg: per busy/commercial restituisce nero pieno
+  // (sostituisce il grigio CL.grey e l'arancione FF8F00 di shared.getHalfBg).
+  function getHalfBgPanoramica(half){
+    if(!half||!half.status)return "transparent";
+    if(half.status==="busy"||half.status==="commercial")return BUSY_COMM_BG;
+    return getHalfBg(half,clients);
+  }
+
   function getFilteredBg(half){
     if(!half||!half.status)return "transparent";
-    if(!filter)return getHalfBg(half,clients);
-    if(matchFilter(half))return getHalfBg(half,clients);
+    if(!filter)return getHalfBgPanoramica(half);
+    if(matchFilter(half))return getHalfBgPanoramica(half);
     return "transparent";
   }
+
+  // Lettera centrata bianca nella casella: X per "Altro impegno", C per "Commerciale OPEX".
+  // Stringa vuota per gli altri stati (cliente/formazione) — vengono renderizzati come bg colorato puro.
+  function getHalfLetter(half){
+    if(!half||!half.status)return "";
+    if(half.status==="busy")return "X";
+    if(half.status==="commercial")return "C";
+    return "";
+  }
+
+  // Stile della "metà" della casella: include allineamento centrato per lettera bianca grassetto.
+  // fontSize 8 sta a malapena nei 9px di altezza disponibili (cella 18x18 divisa in due).
+  var halfTextStyle={display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:8,fontWeight:700,lineHeight:1,fontFamily:FONT};
 
   return(<div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:20}}>
@@ -61,10 +87,10 @@ export function Panoramica(p){
       {filter&&<button onClick={function(){sFilter(null);}} style={{padding:"4px 10px",borderRadius:6,border:"1px solid #ddd",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:FONT,color:"#888"}}>Mostra tutti</button>}
       {usedList.map(function(c){var isActive=filter===c;return<div key={c} onClick={function(){sFilter(isActive?null:c);}} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"3px 8px",borderRadius:6,border:isActive?"2px solid "+getClientColor(clients,c):"2px solid transparent",background:isActive?"#fff":"transparent"}}>
         <div style={{width:13,height:13,borderRadius:4,background:getClientColor(clients,c)}}/><span style={{fontSize:11,color:CL.greyMd}}>{c}</span></div>;})}
-      {hasBusy&&<div onClick={function(){sFilter(filter==="__busy"?null:"__busy");}} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"3px 8px",borderRadius:6,border:filter==="__busy"?"2px solid "+CL.grey:"2px solid transparent",background:filter==="__busy"?"#fff":"transparent"}}>
-        <div style={{width:13,height:13,borderRadius:4,background:CL.grey}}/><span style={{fontSize:11,color:CL.greyMd}}>Altro impegno</span></div>}
-      {hasComm&&<div onClick={function(){sFilter(filter==="__commercial"?null:"__commercial");}} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"3px 8px",borderRadius:6,border:filter==="__commercial"?"2px solid #FF8F00":"2px solid transparent",background:filter==="__commercial"?"#fff":"transparent"}}>
-        <div style={{width:13,height:13,borderRadius:4,background:"#FF8F00"}}/><span style={{fontSize:11,color:CL.greyMd}}>Commerciale OPEX</span></div>}
+      {hasBusy&&<div onClick={function(){sFilter(filter==="__busy"?null:"__busy");}} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"3px 8px",borderRadius:6,border:filter==="__busy"?"2px solid "+BUSY_COMM_BG:"2px solid transparent",background:filter==="__busy"?"#fff":"transparent"}}>
+        <div style={{width:13,height:13,borderRadius:4,background:BUSY_COMM_BG,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,fontFamily:FONT,lineHeight:1}}>X</div><span style={{fontSize:11,color:CL.greyMd}}>Altro impegno</span></div>}
+      {hasComm&&<div onClick={function(){sFilter(filter==="__commercial"?null:"__commercial");}} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"3px 8px",borderRadius:6,border:filter==="__commercial"?"2px solid "+BUSY_COMM_BG:"2px solid transparent",background:filter==="__commercial"?"#fff":"transparent"}}>
+        <div style={{width:13,height:13,borderRadius:4,background:BUSY_COMM_BG,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,fontFamily:FONT,lineHeight:1}}>C</div><span style={{fontSize:11,color:CL.greyMd}}>Commerciale OPEX</span></div>}
       {hasTrain&&<div onClick={function(){sFilter(filter==="__training"?null:"__training");}} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"3px 8px",borderRadius:6,border:filter==="__training"?"2px solid #7B1FA2":"2px solid transparent",background:filter==="__training"?"#fff":"transparent"}}>
         <div style={{width:13,height:13,borderRadius:4,background:"#7B1FA2"}}/><span style={{fontSize:11,color:CL.greyMd}}>Formazione</span></div>}
     </div>
@@ -80,13 +106,19 @@ export function Panoramica(p){
     </tr></thead>
     <tbody>{consSorted.map(function(name){var cE=entries[name]||{},totCli=0,totBusy=0,totComm=0,totTrain=0;
       var tds=Array.from({length:days},function(_,i){var key=makeKey(year,month,i+1),e=cE[key],isSun=(fd+i)%7===6,isSat=(fd+i)%7===5;
-        var amBg=getFilteredBg(e&&e.am?e.am:null);
-        var pmBg=getFilteredBg(e&&e.pm?e.pm:null);
+        var amHalf=e&&e.am?e.am:null;
+        var pmHalf=e&&e.pm?e.pm:null;
+        var amBg=getFilteredBg(amHalf);
+        var pmBg=getFilteredBg(pmHalf);
+        // Lettera mostrata SOLO se la metà è effettivamente visibile (bg non transparent),
+        // cosi' un filtro attivo nasconde correttamente le X/C delle altre categorie.
+        var amLetter=amBg==="transparent"?"":getHalfLetter(amHalf);
+        var pmLetter=pmBg==="transparent"?"":getHalfLetter(pmHalf);
         if(e&&e.am&&e.am.status==="client")totCli+=.5;if(e&&e.pm&&e.pm.status==="client")totCli+=.5;
         if(e&&e.am&&e.am.status==="busy")totBusy+=.5;if(e&&e.pm&&e.pm.status==="busy")totBusy+=.5;
         if(e&&e.am&&e.am.status==="commercial")totComm+=.5;if(e&&e.pm&&e.pm.status==="commercial")totComm+=.5;
         if(e&&e.am&&e.am.status==="training")totTrain+=.5;if(e&&e.pm&&e.pm.status==="training")totTrain+=.5;
-        return<td key={i+1} style={{padding:1,borderBottom:"1px solid #eee",textAlign:"center"}}><div style={{width:18,height:18,borderRadius:3,margin:"0 auto",overflow:"hidden",display:"flex",flexDirection:"column",background:isSun&&amBg==="transparent"&&pmBg==="transparent"?"#f0f0f0":isSat&&amBg==="transparent"&&pmBg==="transparent"?"#f7f5f0":"transparent"}}><div style={{flex:1,background:amBg}}/><div style={{flex:1,background:pmBg}}/></div></td>;});
+        return<td key={i+1} style={{padding:1,borderBottom:"1px solid #eee",textAlign:"center"}}><div style={{width:18,height:18,borderRadius:3,margin:"0 auto",overflow:"hidden",display:"flex",flexDirection:"column",background:isSun&&amBg==="transparent"&&pmBg==="transparent"?"#f0f0f0":isSat&&amBg==="transparent"&&pmBg==="transparent"?"#f7f5f0":"transparent"}}><div style={Object.assign({flex:1,background:amBg},halfTextStyle)}>{amLetter}</div><div style={Object.assign({flex:1,background:pmBg},halfTextStyle)}>{pmLetter}</div></div></td>;});
       var libere=workDays-totCli-totBusy-totComm-totTrain;
       return<tr key={name}>
         <td style={{position:"sticky",left:0,background:"#fff",padding:"4px 10px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,fontSize:11,zIndex:1}}>{name}</td>

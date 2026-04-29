@@ -11,7 +11,10 @@ import { VistaCliente } from "./VistaCliente";
 import { Consuntivo } from "./Consuntivo";
 import { Dashboard } from "./Dashboard";
 import { Impostazioni } from "./Impostazioni";
- 
+
+// Destinatario fisso del Report Consulente: l'amministrazione Opex Solutions.
+var REPORT_RECIPIENT="amministrazione@opexsolutions.it";
+
 export default function App(){
   var ds=useState(null),data=ds[0],sData=ds[1];var ls=useState(true),loading=ls[0],sLoad=ls[1];
   var gs=useState(false),logged=gs[0],sLog=gs[1];var ia=useState(false),isAdm=ia[0],sAdm=ia[1];
@@ -147,10 +150,10 @@ export default function App(){
             lines.push("");lines.push("TOTALE GIORNATE FORMAZIONE: "+fmtNum(totTrain));}
           lines.push("");lines.push("---");lines.push(user);if(userEmail)lines.push(userEmail);
           return lines.join("%0D%0A");}
+        // Destinatario fisso: amministrazione Opex Solutions.
+        // L'eventuale email del consulente viene comunque inserita in chiusura body come firma.
         function openMail(){var subject="Report "+user+" - "+MESI[mo]+" "+yr;
-          var userEmail=(data.consultantEmails||{})[user]||"";
-          var mailto="mailto:?subject="+encodeURIComponent(subject)+"&body="+buildMailBody();
-          if(userEmail)mailto="mailto:?from="+encodeURIComponent(userEmail)+"&subject="+encodeURIComponent(subject)+"&body="+buildMailBody();
+          var mailto="mailto:"+encodeURIComponent(REPORT_RECIPIENT)+"?subject="+encodeURIComponent(subject)+"&body="+buildMailBody();
           window.location.href=mailto;}
         return(<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)",marginTop:16}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
