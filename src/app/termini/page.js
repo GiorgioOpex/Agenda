@@ -44,7 +44,7 @@ export default function TerminiPage() {
       <p>Il Fornitore non e&apos; responsabile per danni da uso improprio, interruzioni per forza maggiore, perdita dati causata dal Cliente. Responsabilita&apos; massima: importo pagato nei 12 mesi precedenti.</p>
 
       <h2 style={{color:"#C41E2A",fontSize:18,marginTop:28}}>9. Durata e Recesso</h2>
-      <p>Contratto annuale con rinnovo automatico. Disdetta con 30 giorni di anticipo.</p>
+      <p>Contratto annuale con rinnovo automatico. Disdetta con 30 giorni di anticipo, da inviare via PEC a <strong>direzione@pec.opexsolutions.it</strong>.</p>
 
       <h2 style={{color:"#C41E2A",fontSize:18,marginTop:28}}>10. Trattamento Dati</h2>
       <p>Disciplinato dalla <a href="/privacy" style={{color:"#C41E2A"}}>Privacy Policy</a>.</p>
@@ -56,7 +56,7 @@ export default function TerminiPage() {
       <p>Legge italiana. Foro competente: Lecco.</p>
 
       <h2 style={{color:"#C41E2A",fontSize:18,marginTop:28}}>13. Contatti</h2>
-      <p>Email: <strong>amministrazione@opexsolutions.it</strong><br/>Sede: Via Lorenzo Balicco 61, 23900 Lecco (LC)<br/>Web: www.opexsolutions.it</p>
+      <p>Email: <strong>amministrazione@opexsolutions.it</strong><br/>PEC: <strong>direzione@pec.opexsolutions.it</strong><br/>Sede: Via Lorenzo Balicco 61, 23900 Lecco (LC)<br/>Web: www.opexsolutions.it</p>
 
       <div style={{textAlign:"center",marginTop:40,paddingTop:20,borderTop:"1px solid #eee"}}>
         <p style={{color:"#888",fontSize:12}}>Opex Solutions S.r.l. — Via Lorenzo Balicco 61, 23900 Lecco (LC)</p>
