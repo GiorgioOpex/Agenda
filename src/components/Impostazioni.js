@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { CL, FONT, sI, sIPw, sB, sO, fmtNum, hashPw } from "./shared";
+import { CL, FONT, MESI, sI, sIPw, sB, sO, fmtNum, hashPw, calcMonthlyPlanned } from "./shared";
 
 export function Impostazioni(p){
   var data=p.data,onSave=p.onSave,onClose=p.onClose;
@@ -112,6 +112,22 @@ export function Impostazioni(p){
     });
   }
 
+  // Riepilogo richieste sotto la lista clienti.
+  // - "Mese corrente": somma dei gg/mese dei soli contratti attivi nel mese di oggi
+  //   (quello che l'organizzazione deve effettivamente coprire). Calcolato ad ogni
+  //   render in modo che si aggiorni live mentre admin modifica scadenze/budget.
+  // - "Totale configurato": somma piatta di tutti i gg/mese (senza filtro scadenze).
+  //   Tenuto come informazione di servizio per chi sta editando, ma chiaramente
+  //   etichettato come "tutti i contratti, senza filtro scadenze".
+  var nowD=new Date(),curY=nowD.getFullYear(),curM=nowD.getMonth();
+  var requestedThisMonth=calcMonthlyPlanned(ll,bud,endD,curY,curM);
+  var activeClientsThisMonth=ll.filter(function(c){
+    if(!endD[c])return true;
+    var end=new Date(endD[c]);if(isNaN(end.getTime()))return true;
+    return end>=new Date(curY,curM,1);
+  }).length;
+  var totalConfigured=ll.reduce(function(s,c){return s+(bud[c]||0);},0);
+
   var sReset={padding:"4px 8px",borderRadius:6,border:"1px solid "+CL.red,background:"#fff",color:CL.red,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:FONT,whiteSpace:"nowrap"};
   var sortBtn={padding:"4px 10px",borderRadius:6,border:"1px solid #ddd",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:FONT,color:CL.greyDk,fontWeight:600};
 
@@ -160,7 +176,25 @@ export function Impostazioni(p){
           </div>}
         </div>;})}
         <div style={{display:"flex",gap:8,marginTop:6}}><input value={nl} onChange={function(e){sNl(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&nl.trim()){sLl([].concat(ll,[nl.trim().toUpperCase()]));sNl("");}}} placeholder="Nuovo cliente..." style={sI}/><button onClick={function(){if(nl.trim()){sLl([].concat(ll,[nl.trim().toUpperCase()]));sNl("");}}} style={sB}>+</button></div>
-        <div style={{marginTop:12,padding:"10px 14px",background:CL.greyLt,borderRadius:8}}><span style={{fontSize:13,color:CL.greyMd}}>Totale richieste: </span><span style={{fontSize:16,fontWeight:700,color:CL.red}}>{fmtNum(ll.reduce(function(s,c){return s+(bud[c]||0);},0))}</span><span style={{fontSize:12,color:"#888"}}> gg/mese</span></div></div>}
+        {/* Riepilogo: il dato "vero" e' il mese corrente (al netto delle scadenze).
+            Il totale configurato e' tenuto come dato di servizio, chiaramente etichettato. */}
+        <div style={{marginTop:12,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8}}>
+          <div style={{padding:"10px 14px",background:"#FFF3F3",borderRadius:8,border:"1px solid "+CL.red}}>
+            <div style={{fontSize:11,color:CL.greyMd}}>Richieste {MESI[curM]} {curY}</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+              <span style={{fontSize:18,fontWeight:700,color:CL.red}}>{fmtNum(requestedThisMonth)}</span>
+              <span style={{fontSize:11,color:"#888"}}>gg/mese · {activeClientsThisMonth} contratt{activeClientsThisMonth===1?"o":"i"} attiv{activeClientsThisMonth===1?"o":"i"}</span>
+            </div>
+          </div>
+          <div style={{padding:"10px 14px",background:CL.greyLt,borderRadius:8,border:"1px solid #ddd"}}>
+            <div style={{fontSize:11,color:CL.greyMd}}>Totale gg/mese (tutti i contratti)</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+              <span style={{fontSize:16,fontWeight:700,color:CL.greyDk}}>{fmtNum(totalConfigured)}</span>
+              <span style={{fontSize:11,color:"#888"}}>gg/mese · {ll.length} client{ll.length===1?"e":"i"} a sistema</span>
+            </div>
+          </div>
+        </div>
+      </div>}
 
       {tab==="target"&&<div><h4 style={{margin:"0 0 10px",color:CL.red}}>Target mensile OPEX</h4><p style={{fontSize:13,color:CL.greyMd,marginBottom:12}}>Obiettivo giornate fatturabili al mese.</p>
         <div style={{display:"flex",alignItems:"center",gap:10}}><input type="number" min="0" step="1" value={tM||""} onChange={function(e){sTM(parseFloat(e.target.value)||0);}} style={Object.assign({},sI,{flex:"none",width:120,fontSize:20,textAlign:"center",padding:"12px",border:"2px solid "+CL.red,fontWeight:700})}/><span style={{fontSize:14,color:CL.greyMd}}>gg/mese</span></div></div>}

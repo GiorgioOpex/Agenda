@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { CL, FONT, makeKey, daysInMonth, firstDow, fmtNum, getHalfBg, getClientColor, getUsedClients } from "./shared";
+import { CL, FONT, makeKey, daysInMonth, firstDow, fmtNum, getHalfBg, getClientColor, getUsedClients, calcMonthlyPlanned } from "./shared";
 
 // Colore dedicato a "Altro impegno" e "Commerciale OPEX": nero pieno.
 // Riservato a queste due categorie e MAI usato per i clienti (la palette
@@ -8,7 +8,7 @@ import { CL, FONT, makeKey, daysInMonth, firstDow, fmtNum, getHalfBg, getClientC
 var BUSY_COMM_BG="#000";
 
 export function Panoramica(p){
-  var entries=p.entries,cons=p.consultants,clients=p.clients||[],cBud=p.clientBudgets||{},year=p.year,month=p.month;
+  var entries=p.entries,cons=p.consultants,clients=p.clients||[],cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month;
   var days=daysInMonth(year,month),fd=firstDow(year,month);
   var fs=useState(null),filter=fs[0],sFilter=fs[1];
 
@@ -35,7 +35,9 @@ export function Panoramica(p){
 
   var workDays=0;
   for(var d=1;d<=days;d++){if((fd+d-1)%7<5)workDays++;}
-  var totPreviste=clients.reduce(function(s,c){return s+(cBud[c]||0);},0);
+  // Previste filtrate sul mese visualizzato: i clienti il cui contratto e' gia'
+  // scaduto al primo giorno del mese non contribuiscono al totale.
+  var totPreviste=calcMonthlyPlanned(clients,cBud,cEnd,year,month);
   var totDisponibili=workDays*cons.length-totCliAll-totBusyAll-totCommAll-totTrainAll;
 
   function matchFilter(half){
