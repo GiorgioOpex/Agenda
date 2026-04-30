@@ -1,6 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
-import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, makeKey, daysInMonth, firstDow } from "./shared";
+import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcMonthlyPlanned, isClientActiveInMonth, makeKey, daysInMonth, firstDow } from "./shared";
 
 function getWeeksOfMonth(year,month){
   var days=daysInMonth(year,month),fd=firstDow(year,month),weeks=[];
@@ -20,9 +20,12 @@ function calcWeekActuals(entries,consultants,year,month,startDay,endDay){
       ["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client")tot+=0.5;});});}
   return{actual:tot,workDays:workHalves/2};}
 
-function calcYTD(entries,consultants,year,upToMonth,upToWeekEnd,planned,target){
+// monthlyPlanned: array di 12 elementi, una "previste" per ciascun mese
+// gia' filtrata sui contratti attivi in quel mese.
+function calcYTD(entries,consultants,year,upToMonth,upToWeekEnd,monthlyPlanned,target){
   var totActual=0,totPlanned=0,totTarget=0;
-  for(var mi=0;mi<=upToMonth;mi++){if(mi<upToMonth){var a=calcMonthActuals(entries,consultants,year,mi);totActual+=a.totalClient;totPlanned+=planned;totTarget+=target;}
+  for(var mi=0;mi<=upToMonth;mi++){var planned=monthlyPlanned[mi]||0;
+    if(mi<upToMonth){var a=calcMonthActuals(entries,consultants,year,mi);totActual+=a.totalClient;totPlanned+=planned;totTarget+=target;}
     else{var fd=firstDow(year,mi),days=daysInMonth(year,mi),wdM=0;for(var d=1;d<=days;d++){if((fd+d-1)%7<5)wdM++;}
       var wdU=0;for(var d2=1;d2<=upToWeekEnd;d2++){if((fd+d2-1)%7<5)wdU++;}
       var ratio=wdM>0?wdU/wdM:0;totPlanned+=planned*ratio;totTarget+=target*ratio;
@@ -30,9 +33,9 @@ function calcYTD(entries,consultants,year,upToMonth,upToWeekEnd,planned,target){
   return{actual:totActual,planned:totPlanned,target:totTarget};}
 
 function CumulativeChart(p){
-  var months=p.months,target=p.target,planned=p.planned,cM=p.cM,year=p.year;
+  var months=p.months,target=p.target,monthlyPlanned=p.monthlyPlanned,cM=p.cM,year=p.year;
   var cumT=[],cumP=[],cumA=[],ct=0,cp=0,ca=0;
-  for(var i=0;i<12;i++){ct+=target;cp+=planned;ca+=months[i].actual;cumT.push(ct);cumP.push(cp);cumA.push(ca);}
+  for(var i=0;i<12;i++){ct+=target;cp+=(monthlyPlanned[i]||0);ca+=months[i].actual;cumT.push(ct);cumP.push(cp);cumA.push(ca);}
   var maxC=Math.max(cumT[11]||1,cumP[11]||1,cumA[cM]||1);
   var W=680,H=200,pL=45,pR=10,pT=10,pB=30,gW=W-pL-pR,gH=H-pT-pB;
   function xP(i){return pL+i*(gW/11);}function yP(v){return pT+gH-((v/maxC)*gH);}
@@ -58,14 +61,15 @@ function CumulativeChart(p){
     </svg>
     <p style={{marginTop:8,fontSize:11,color:"#aaa"}}>Tratteggiate = proiezione. Continua = effettivo fino a {MESI[cM]}</p></div>);}
 
-function generateWeeklyMail(data,year,wMo,weeks,planned,target,months,cM){
+function generateWeeklyMail(data,year,wMo,weeks,monthlyPlanned,target,months,cM){
   var today=new Date();var todayD=today.getDate();var todayM=today.getMonth();
   var prevWeek=null;
   for(var wi=weeks.length-1;wi>=0;wi--){if(wMo<todayM||(wMo===todayM&&weeks[wi].end<todayD)){prevWeek=weeks[wi];break;}}
   if(!prevWeek)prevWeek=weeks[weeks.length-1];
   var yr2=String(year).substring(2);
   var ytdActual=months.reduce(function(s,m,i){return i<=cM?s+m.actual:s;},0);
-  var ytdPlanned=planned*(cM+1);var ytdTarget=target*(cM+1);
+  var ytdPlanned=monthlyPlanned.reduce(function(s,p,i){return i<=cM?s+p:s;},0);
+  var ytdTarget=target*(cM+1);
   var ytdPct=ytdTarget>0?Math.round((ytdActual/ytdTarget)*100):0;
   var delta=prevWeek.actual-prevWeek.target;
   var lines=[];
@@ -101,27 +105,36 @@ function generateWeeklyMail(data,year,wMo,weeks,planned,target,months,cM){
 
 export function Dashboard(p){
   var data=p.data,year=p.year,target=data.targetMensile||0;
-  var planned=(data.clients||[]).reduce(function(s,c){return s+((data.clientBudgets||{})[c]||0);},0);
+  var clients=data.clients||[];
+  var clientBudgets=data.clientBudgets||{};
+  var clientEndDates=data.clientEndDates||{};
   var cM=new Date().getMonth();
   var vs=useState("monthly"),viewMode=vs[0],sViewMode=vs[1];
   var ws=useState(null),selWeek=ws[0],sSelWeek=ws[1];
   var sms=useState(null),selMonth=sms[0],sSelMonth=sms[1];
   var wms=useState(cM),wMo=wms[0],sWMo=wms[1];
 
-  var months=useMemo(function(){return MESI.map(function(nome,mi){var a=calcMonthActuals(data.entries,data.consultants,year,mi);return{nome:nome.substring(0,3),actual:a.totalClient,planned:planned,target:target,byClient:a.byClient};});},[data,year,target,planned]);
+  // Array delle giornate previste per ciascuno dei 12 mesi: somma dei gg/mese
+  // dei soli clienti il cui contratto e' ancora attivo nel mese specifico.
+  // I clienti con contratto scaduto prima del primo giorno del mese contano 0.
+  var monthlyPlanned=useMemo(function(){var arr=[];for(var mi=0;mi<12;mi++){arr.push(calcMonthlyPlanned(clients,clientBudgets,clientEndDates,year,mi));}return arr;},[clients,clientBudgets,clientEndDates,year]);
 
-  var weeks=useMemo(function(){var wks=getWeeksOfMonth(year,wMo);return wks.map(function(w){var wa=calcWeekActuals(data.entries,data.consultants,year,wMo,w.start,w.end);
-    var pR=wa.workDays>0?planned*(wa.workDays/20):0;var tR=wa.workDays>0?target*(wa.workDays/20):0;
+  var months=useMemo(function(){return MESI.map(function(nome,mi){var a=calcMonthActuals(data.entries,data.consultants,year,mi);return{nome:nome.substring(0,3),actual:a.totalClient,planned:monthlyPlanned[mi]||0,target:target,byClient:a.byClient};});},[data,year,target,monthlyPlanned]);
+
+  var weeks=useMemo(function(){var wks=getWeeksOfMonth(year,wMo);var pWMo=monthlyPlanned[wMo]||0;return wks.map(function(w){var wa=calcWeekActuals(data.entries,data.consultants,year,wMo,w.start,w.end);
+    var pR=wa.workDays>0?pWMo*(wa.workDays/20):0;var tR=wa.workDays>0?target*(wa.workDays/20):0;
     var iw=isoWeek(year,wMo,w.start);
-    return{num:w.num,start:w.start,end:w.end,actual:wa.actual,planned:pR,target:tR,workDays:wa.workDays,isoW:iw};});},[data,year,wMo,planned,target]);
+    return{num:w.num,start:w.start,end:w.end,actual:wa.actual,planned:pR,target:tR,workDays:wa.workDays,isoW:iw};});},[data,year,wMo,monthlyPlanned,target]);
 
   var ytdData=useMemo(function(){if(selWeek===null)return null;var w=weeks[selWeek];if(!w)return null;
-    return calcYTD(data.entries,data.consultants,year,wMo,w.end,planned,target);},[selWeek,data,year,wMo,weeks,planned,target]);
+    return calcYTD(data.entries,data.consultants,year,wMo,w.end,monthlyPlanned,target);},[selWeek,data,year,wMo,weeks,monthlyPlanned,target]);
 
-  var mxM=Math.max(target,planned,Math.max.apply(null,months.map(function(m){return m.actual;})))||1;
+  var maxPlanned=monthlyPlanned.length>0?Math.max.apply(null,monthlyPlanned):0;
+  var mxM=Math.max(target,maxPlanned,Math.max.apply(null,months.map(function(m){return m.actual;})))||1;
   var mxW=weeks.length>0?Math.max(Math.max.apply(null,weeks.map(function(w){return Math.max(w.actual,w.planned,w.target);})),1):1;
   var ytdActual=months.reduce(function(s,m,i){return i<=cM?s+m.actual:s;},0);
-  var ytdPlanned=planned*(cM+1);var ytdTarget=target*(cM+1);
+  var ytdPlanned=monthlyPlanned.reduce(function(s,p,i){return i<=cM?s+p:s;},0);
+  var ytdTarget=target*(cM+1);
 
   return(<div>
     <div style={{display:"flex",gap:8,marginBottom:20}}>
@@ -134,13 +147,13 @@ export function Dashboard(p){
       <div style={{padding:"12px 16px",background:CL.greyLt,borderRadius:10,border:"1px solid #ddd"}}><div style={{fontSize:11,color:CL.greyMd}}>Effettive YTD</div><div style={{fontSize:22,fontWeight:700,color:CL.greyDk}}>{fmtNum(ytdActual)}</div></div>
       <div style={{padding:"12px 16px",background:ytdActual>=ytdTarget?"#E8F5E9":"#FFF3F3",borderRadius:10,border:"1px solid "+(ytdActual>=ytdTarget?"#A5D6A7":CL.red)}}><div style={{fontSize:11,color:CL.greyMd}}>Raggiungimento YTD</div><div style={{fontSize:22,fontWeight:700,color:ytdActual>=ytdTarget?"#2E7D32":CL.red}}>{ytdTarget>0?Math.round((ytdActual/ytdTarget)*100):0}%</div></div></div>
 
-    {viewMode==="monthly"&&<CumulativeChart months={months} target={target} planned={planned} cM={cM} year={year}/>}
+    {viewMode==="monthly"&&<CumulativeChart months={months} target={target} monthlyPlanned={monthlyPlanned} cM={cM} year={year}/>}
 
     {viewMode==="monthly"&&<div>
       {function(){var mi=selMonth!==null?selMonth:cM;var m=months[mi];var lbl=selMonth!==null?MESI[selMonth]:MESI[cM];
         return<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12,marginBottom:20}}>
           <div style={{padding:"14px 18px",background:"#FFF3F3",borderRadius:12,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Target {lbl}</div><div style={{fontSize:28,fontWeight:700,color:CL.red}}>{fmtNum(target)}</div></div>
-          <div style={{padding:"14px 18px",background:"#E8F5E9",borderRadius:12,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Richieste {lbl}</div><div style={{fontSize:28,fontWeight:700,color:"#2E7D32"}}>{fmtNum(planned)}</div></div>
+          <div style={{padding:"14px 18px",background:"#E8F5E9",borderRadius:12,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Richieste {lbl}</div><div style={{fontSize:28,fontWeight:700,color:"#2E7D32"}}>{fmtNum(m.planned)}</div></div>
           <div style={{padding:"14px 18px",background:CL.greyLt,borderRadius:12,border:"1px solid #ddd"}}><div style={{fontSize:11,color:CL.greyMd}}>Effettive {lbl}</div><div style={{fontSize:28,fontWeight:700,color:CL.greyDk}}>{fmtNum(m.actual)}</div></div>
           <div style={{padding:"14px 18px",background:m.actual>=target?"#E8F5E9":"#FFF3F3",borderRadius:12,border:"1px solid "+(m.actual>=target?"#A5D6A7":CL.red)}}><div style={{fontSize:11,color:CL.greyMd}}>vs Target</div><div style={{fontSize:28,fontWeight:700,color:m.actual>=target?"#2E7D32":CL.red}}>{target>0?Math.round((m.actual/target)*100):0}%</div></div></div>;}()}
       <div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #eee",marginBottom:16}}>
@@ -164,15 +177,15 @@ export function Dashboard(p){
             <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>Previste</th>
             <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>Effettive</th>
             <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>Delta</th></tr></thead>
-          <tbody>{(data.clients||[]).map(function(c){var eff=months[selMonth].byClient[c]||0;var bud=(data.clientBudgets||{})[c]||0;var diff=eff-bud;
-            return<tr key={c}><td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>{c}</td>
+          <tbody>{(data.clients||[]).map(function(c){var eff=months[selMonth].byClient[c]||0;var active=isClientActiveInMonth(clientEndDates[c],year,selMonth);var bud=active?(clientBudgets[c]||0):0;var diff=eff-bud;
+            return<tr key={c}><td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>{c}{!active&&<span style={{marginLeft:6,fontSize:10,color:CL.red,fontWeight:700}}>(scaduto)</span>}</td>
               <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center"}}>{fmtNum(bud)}</td>
               <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.red}}>{fmtNum(eff)}</td>
               <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:diff>=0?"#2E7D32":CL.red}}>{(diff>=0?"+":"")+fmtNum(diff)}</td></tr>;})}
           <tr style={{background:"#FFF8F8"}}><td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700,color:CL.greyDk}}>TOTALE</td>
-            <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700}}>{fmtNum(planned)}</td>
+            <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700}}>{fmtNum(months[selMonth].planned)}</td>
             <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.red}}>{fmtNum(months[selMonth].actual)}</td>
-            <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:months[selMonth].actual-planned>=0?"#2E7D32":CL.red}}>{(months[selMonth].actual-planned>=0?"+":"")+fmtNum(months[selMonth].actual-planned)}</td></tr>
+            <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:months[selMonth].actual-months[selMonth].planned>=0?"#2E7D32":CL.red}}>{(months[selMonth].actual-months[selMonth].planned>=0?"+":"")+fmtNum(months[selMonth].actual-months[selMonth].planned)}</td></tr>
         </tbody></table></div></div>}
       </div>}
 
@@ -213,7 +226,7 @@ export function Dashboard(p){
           <div style={{padding:"12px 16px",background:ytdData.actual>=ytdData.target?"#E8F5E9":"#FFF3F3",borderRadius:10,border:"1px solid "+(ytdData.actual>=ytdData.target?"#A5D6A7":CL.red)}}><div style={{fontSize:11,color:CL.greyMd}}>Raggiungimento</div><div style={{fontSize:22,fontWeight:700,color:ytdData.actual>=ytdData.target?"#2E7D32":CL.red}}>{ytdData.target>0?Math.round((ytdData.actual/ytdData.target)*100):0}%</div></div></div>
         <div style={{marginTop:12,height:10,background:CL.greyLt,borderRadius:5,overflow:"hidden"}}><div style={{height:"100%",width:Math.min(100,ytdData.target>0?(ytdData.actual/ytdData.target)*100:0)+"%",background:ytdData.actual>=ytdData.target?"#2E7D32":CL.red,borderRadius:5}}/></div></div>}
       <div style={{textAlign:"center",marginTop:20}}>
-        <button onClick={function(){generateWeeklyMail(data,year,wMo,weeks,planned,target,months,cM);}} style={{padding:"12px 28px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Invia Report via Mail</button>
+        <button onClick={function(){generateWeeklyMail(data,year,wMo,weeks,monthlyPlanned,target,months,cM);}} style={{padding:"12px 28px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Invia Report via Mail</button>
       </div>
     </div>}
   </div>);

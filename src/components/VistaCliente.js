@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcAllActuals, calcContractTotal, makeKey, daysInMonth } from "./shared";
+import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcAllActuals, calcContractTotal, isClientActiveInMonth, makeKey, daysInMonth } from "./shared";
 
 var GIORNI_SETT=["Domenica","Lunedi'","Martedi'","Mercoledi'","Giovedi'","Venerdi'","Sabato"];
 
@@ -89,14 +89,17 @@ export function VistaCliente(p){
           </tr>);})}</tbody></table></div>
       <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Clicca sull'intestazione di una colonna per ordinare. Clicca su una riga cliente per il dettaglio. Valori in giornate (0.5 = mezza giornata).</p></div>);
   }
-  var bud=cBud[sel]||0,ed=cEnd[sel]||"",ct=calcContractTotal(bud,ed),eTot=aAct[sel]||0,act=mAct.byClient[sel]||0,rem=bud-act,cRem=ct-eTot;
+  // Dettaglio cliente selezionato. Se il contratto e' scaduto rispetto al
+  // mese visualizzato, "Previste/mese" diventa 0 (le altre KPI seguono di conseguenza).
+  var fullBud=cBud[sel]||0,ed=cEnd[sel]||"",activeInMonth=isClientActiveInMonth(ed,year,month);
+  var bud=activeInMonth?fullBud:0,ct=calcContractTotal(fullBud,ed),eTot=aAct[sel]||0,act=mAct.byClient[sel]||0,rem=bud-act,cRem=ct-eTot;
   return(<div>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,flexWrap:"wrap"}}>
       <button onClick={function(){setSel("");}} style={Object.assign({},sO,{padding:"6px 12px",fontSize:12})}>&#8249; Tutti i clienti</button>
       <span style={{fontSize:18,fontWeight:700,color:CL.red}}>{sel}</span>
       {ed&&<span style={{fontSize:12,color:CL.greyMd}}>Contratto fino al {ed}</span>}</div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12,marginBottom:20}}>
-      <div style={{padding:"14px 18px",background:"#FFF3F3",borderRadius:12,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Previste/mese</div><div style={{fontSize:24,fontWeight:700,color:CL.red}}>{fmtNum(bud)}</div></div>
+      <div style={{padding:"14px 18px",background:"#FFF3F3",borderRadius:12,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Previste/mese{!activeInMonth&&<span style={{marginLeft:6,fontSize:10,color:CL.red,fontWeight:700}}>(scaduto)</span>}</div><div style={{fontSize:24,fontWeight:700,color:CL.red}}>{fmtNum(bud)}</div></div>
       <div style={{padding:"14px 18px",background:"#E8F5E9",borderRadius:12,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Impegnate {MESI[month].substring(0,3)}</div><div style={{fontSize:24,fontWeight:700,color:"#2E7D32"}}>{fmtNum(act)}</div></div>
       <div style={{padding:"14px 18px",background:rem<0?"#FFF3F3":CL.greyLt,borderRadius:12,border:"1px solid "+(rem<0?CL.red:"#ddd")}}><div style={{fontSize:11,color:CL.greyMd}}>Rimanenti mese</div><div style={{fontSize:24,fontWeight:700,color:rem<0?CL.red:CL.greyDk}}>{fmtNum(rem)}</div></div>
       {bud>0&&<div style={{padding:"14px 18px",background:CL.greyLt,borderRadius:12,border:"1px solid #ddd"}}><div style={{fontSize:11,color:CL.greyMd}}>Copertura mese</div><div style={{fontSize:24,fontWeight:700,color:act>=bud?"#2E7D32":CL.red}}>{Math.round((act/bud)*100)}%</div></div>}</div>

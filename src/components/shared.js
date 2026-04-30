@@ -86,6 +86,21 @@ export function calcContractTotal(budget,endDate){
   if(end<=now)return 0;var months=0;var d=new Date(now.getFullYear(),now.getMonth(),1);
   while(d<=end){months++;d.setMonth(d.getMonth()+1);}return budget*months;}
 
+// Cliente attivo nel mese M dell'anno Y se la data fine contratto e' >= primo giorno di M.
+// Contratto a meta' mese: il mese e' considerato attivo a budget pieno (gg/mese intere).
+// Senza data fine contratto: trattato come sempre attivo (retro-compatibilita').
+export function isClientActiveInMonth(endDate,year,month){
+  if(!endDate)return true;var end=new Date(endDate);if(isNaN(end.getTime()))return true;
+  var firstOfMonth=new Date(year,month,1);return end>=firstOfMonth;}
+
+// Somma dei gg/mese dei soli clienti attivi nel mese M dell'anno Y.
+// Clienti con contratto gia' scaduto al mese M non contribuiscono.
+export function calcMonthlyPlanned(clients,clientBudgets,clientEndDates,year,month){
+  var bud=clientBudgets||{},ends=clientEndDates||{};
+  return (clients||[]).reduce(function(s,c){
+    if(!isClientActiveInMonth(ends[c],year,month))return s;
+    return s+(bud[c]||0);},0);}
+
 export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},consultantEmails:{},entries:{},admins:[],targetMensile:0,userFlags:{}};
 
 export async function loadAll(){try{var res=await fetch("/api/data?t="+Date.now());if(!res.ok)return Object.assign({},EMPTY);var d=await res.json();return Object.assign({},EMPTY,d);}catch(e){return Object.assign({},EMPTY);}}
