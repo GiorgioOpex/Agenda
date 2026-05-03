@@ -21,7 +21,17 @@ jobs:
           sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           sudo apt-get update -qq
           sudo apt-get install -y postgresql-client-17
-          pg_dump --version
+
+          PG_DUMP_BIN=/usr/lib/postgresql/17/bin/pg_dump
+          if [ ! -x "$PG_DUMP_BIN" ]; then
+            echo "ERRORE: pg_dump 17 non trovato. Versioni disponibili:"
+            ls -la /usr/lib/postgresql/ || true
+            apt-cache policy postgresql-client-17 || true
+            exit 1
+          fi
+
+          "$PG_DUMP_BIN" --version
+          echo "PG_DUMP=$PG_DUMP_BIN" >> "$GITHUB_ENV"
 
       - name: Install rclone
         run: |
@@ -53,7 +63,7 @@ jobs:
           set -euo pipefail
           FILE="agenda-backup-${TS}.sql.gz.gpg"
 
-          pg_dump "$DB_URL" \
+          "$PG_DUMP" "$DB_URL" \
             --no-owner \
             --no-privileges \
             --no-publications \
