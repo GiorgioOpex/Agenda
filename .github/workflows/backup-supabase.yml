@@ -1,0 +1,104 @@
+name: Backup Supabase Database
+
+on:
+  schedule:
+    # Ogni giorno alle 02:00 UTC (= 03:00 IT inverno, 04:00 IT estate)
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # permette trigger manuale dal tab Actions
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Install PostgreSQL 17 client
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-17
+          pg_dump --version
+
+      - name: Install rclone
+        run: |
+          set -euo pipefail
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          rclone version
+
+      - name: Setup rclone config
+        env:
+          RCLONE_CFG: ${{ secrets.RCLONE_CONFIG }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.config/rclone
+          printf '%s' "$RCLONE_CFG" > ~/.config/rclone/rclone.conf
+          chmod 600 ~/.config/rclone/rclone.conf
+          echo "Config rclone OK, remote disponibili:"
+          rclone listremotes
+
+      - name: Generate timestamp
+        id: ts
+        run: echo "value=$(date -u +%Y-%m-%d_%H%M%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Dump, compress and encrypt database
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          TS: ${{ steps.ts.outputs.value }}
+        run: |
+          set -euo pipefail
+          FILE="agenda-backup-${TS}.sql.gz.gpg"
+
+          pg_dump "$DB_URL" \
+            --no-owner \
+            --no-privileges \
+            --no-publications \
+            --no-subscriptions \
+            --clean --if-exists \
+            --quote-all-identifiers \
+            --exclude-schema='_supabase' \
+            --exclude-schema='auth' \
+            --exclude-schema='extensions' \
+            --exclude-schema='graphql' \
+            --exclude-schema='graphql_public' \
+            --exclude-schema='net' \
+            --exclude-schema='pgsodium*' \
+            --exclude-schema='realtime' \
+            --exclude-schema='storage' \
+            --exclude-schema='supabase_functions' \
+            --exclude-schema='vault' \
+            | gzip -9 \
+            | gpg --batch --yes --symmetric --cipher-algo AES256 \
+                  --passphrase "$PASSPHRASE" \
+            > "$FILE"
+
+          SIZE=$(stat -c%s "$FILE")
+          echo "File creato: $FILE ($SIZE bytes)"
+          if [ "$SIZE" -lt 500 ]; then
+            echo "ERROR: backup troppo piccolo, qualcosa e' andato storto"
+            exit 1
+          fi
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+
+      - name: Upload to OneDrive
+        run: |
+          set -euo pipefail
+          rclone copy "$FILE" onedrive:Backup-Agenda-Supabase \
+            --progress --stats-one-line
+
+      - name: Rotate old backups (older than 84 days)
+        run: |
+          set -euo pipefail
+          echo "Cancellazione backup piu' vecchi di 84 giorni..."
+          rclone delete onedrive:Backup-Agenda-Supabase --min-age 84d -v
+
+      - name: List remaining backups on OneDrive
+        run: |
+          echo "=== Backup attualmente su OneDrive ==="
+          rclone ls onedrive:Backup-Agenda-Supabase | sort -r
+          echo "=== Conteggio ==="
+          rclone ls onedrive:Backup-Agenda-Supabase | wc -l
