@@ -3,7 +3,7 @@ name: Backup Supabase Database
 on:
   schedule:
     # Ogni giorno alle 02:00 UTC (= 03:00 IT inverno, 04:00 IT estate)
-    - cron: '0 2 * * *'
+    - cron: '17 2 * * *'
   workflow_dispatch:  # permette trigger manuale dal tab Actions
 
 jobs:
