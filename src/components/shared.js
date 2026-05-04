@@ -81,25 +81,48 @@ export function calcMonthActuals(entries,consultants,year,month){
   consultants.forEach(function(n){var cE=entries[n]||{};for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
     ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;if(x.status==="client"){r.totalClient+=0.5;if(x.client)r.byClient[x.client]=(r.byClient[x.client]||0)+0.5;}else if(x.status==="busy")r.totalBusy+=0.5;else if(x.status==="commercial")r.totalCommercial+=0.5;else if(x.status==="training")r.totalTraining+=0.5;});}});return r;}
 
-export function calcContractTotal(budget,endDate){
-  if(!budget||!endDate)return 0;var now=new Date();var end=new Date(endDate);
-  if(end<=now)return 0;var months=0;var d=new Date(now.getFullYear(),now.getMonth(),1);
-  while(d<=end){months++;d.setMonth(d.getMonth()+1);}return budget*months;}
+// Restituisce la Date della prima giornata in agenda per il cliente indicato
+// (mezza giornata o intera, su qualsiasi consulente). Null se non esistono giornate.
+// Usato da calcContractTotal per ancorare l'inizio del conteggio al primo
+// impegno reale invece che al mese corrente.
+export function findClientFirstEntry(clientName,entries,consultants){
+  if(!clientName||!entries||!consultants)return null;
+  var earliest=null;
+  consultants.forEach(function(n){
+    var cE=entries[n]||{};
+    Object.keys(cE).forEach(function(key){
+      var e=cE[key];if(!e)return;
+      var hit=false;
+      ["am","pm"].forEach(function(h){
+        var x=e[h];
+        if(x&&x.status==="client"&&x.client===clientName)hit=true;
+      });
+      if(hit){
+        var info=parseKey(key);
+        var dt=new Date(info.year,info.month,info.day);
+        if(!earliest||dt<earliest)earliest=dt;
+      }
+    });
+  });
+  return earliest;
+}
 
-// Cliente attivo nel mese M dell'anno Y se la data fine contratto e' >= primo giorno di M.
-// Contratto a meta' mese: il mese e' considerato attivo a budget pieno (gg/mese intere).
-// Senza data fine contratto: trattato come sempre attivo (retro-compatibilita').
-export function isClientActiveInMonth(endDate,year,month){
-  if(!endDate)return true;var end=new Date(endDate);if(isNaN(end.getTime()))return true;
-  var firstOfMonth=new Date(year,month,1);return end>=firstOfMonth;}
-
-// Somma dei gg/mese dei soli clienti attivi nel mese M dell'anno Y.
-// Clienti con contratto gia' scaduto al mese M non contribuiscono.
-export function calcMonthlyPlanned(clients,clientBudgets,clientEndDates,year,month){
-  var bud=clientBudgets||{},ends=clientEndDates||{};
-  return (clients||[]).reduce(function(s,c){
-    if(!isClientActiveInMonth(ends[c],year,month))return s;
-    return s+(bud[c]||0);},0);}
+// GG contratto = budget * mesi tra il mese di inizio conteggio e la data fine.
+// Mese di inizio conteggio:
+//   - mese della prima giornata in agenda per il cliente (firstEntryDate),
+//   - oppure mese corrente se non esistono giornate (firstEntryDate null).
+// Niente filtro sui contratti scaduti: anche per i contratti gia' chiusi viene
+// mostrato il totale storico dimensionato sulla durata effettiva del contratto.
+export function calcContractTotal(budget,endDate,firstEntryDate){
+  if(!budget||!endDate)return 0;
+  var end=new Date(endDate);
+  var startBase=firstEntryDate?firstEntryDate:new Date();
+  var d=new Date(startBase.getFullYear(),startBase.getMonth(),1);
+  if(end<d)return 0;
+  var months=0;
+  while(d<=end){months++;d.setMonth(d.getMonth()+1);}
+  return budget*months;
+}
 
 export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},consultantEmails:{},entries:{},admins:[],targetMensile:0,userFlags:{}};
 
