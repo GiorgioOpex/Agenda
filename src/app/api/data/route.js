@@ -27,6 +27,35 @@ async function getOrgId() {
   return data ? data.id : null;
 }
 
+// Normalizza il payload customHolidays in arrivo dal frontend, per evitare
+// di scrivere dati malformati in JSONB. Accetta sia stringhe "YYYY-MM-DD"
+// sia oggetti {date,label}; scarta tutto il resto.
+function sanitizeCustomHolidays(raw) {
+  if (!Array.isArray(raw)) return [];
+  var out = [];
+  var seen = {};
+  for (var i = 0; i < raw.length; i++) {
+    var item = raw[i];
+    var date = "", label = "";
+    if (typeof item === "string") {
+      date = item;
+    } else if (item && typeof item === "object" && typeof item.date === "string") {
+      date = item.date;
+      label = typeof item.label === "string" ? item.label : "";
+    } else {
+      continue;
+    }
+    // Formato ISO YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    if (seen[date]) continue;
+    seen[date] = true;
+    out.push({ date: date, label: label.trim() });
+  }
+  // Ordino per data crescente per leggibilita' in DB
+  out.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  return out;
+}
+
 async function readData() {
   const orgId = await getOrgId();
   if (!orgId) return null;
@@ -76,6 +105,13 @@ async function readData() {
     };
   });
 
+  // Festivita' personalizzate: array di oggetti {date,label}. Se la colonna
+  // non esiste ancora (migration non applicata) o e' null, ricadiamo su [].
+  var customHolidays = [];
+  if (settings && Array.isArray(settings.custom_holidays)) {
+    customHolidays = settings.custom_holidays;
+  }
+
   return {
     consultants: consultants,
     clients: clientNames,
@@ -85,6 +121,7 @@ async function readData() {
     entries: entryMap,
     admins: adminList,
     targetMensile: settings ? settings.target_monthly : 0,
+    customHolidays: customHolidays,
     userFlags: userFlags
   };
 }
@@ -168,12 +205,19 @@ async function writeData(body) {
     }
   }
 
-  if (body.targetMensile !== undefined) {
+  // Tabella settings: target_monthly e/o custom_holidays.
+  // Aggrego eventuali update in un'unica operazione perche' la riga e' unica
+  // per org_id (una sola riga in settings per organizzazione).
+  if (body.targetMensile !== undefined || body.customHolidays !== undefined) {
+    const updates = {};
+    if (body.targetMensile !== undefined) updates.target_monthly = body.targetMensile;
+    if (body.customHolidays !== undefined) updates.custom_holidays = sanitizeCustomHolidays(body.customHolidays);
     const { data: existing } = await supabase.from('settings').select('id').eq('org_id', orgId).single();
     if (existing) {
-      await supabase.from('settings').update({ target_monthly: body.targetMensile }).eq('org_id', orgId);
+      await supabase.from('settings').update(updates).eq('org_id', orgId);
     } else {
-      await supabase.from('settings').insert({ org_id: orgId, target_monthly: body.targetMensile });
+      const insertData = Object.assign({ org_id: orgId }, updates);
+      await supabase.from('settings').insert(insertData);
     }
   }
 
