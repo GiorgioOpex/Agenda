@@ -12,6 +12,11 @@ export var sIPw={padding:"9px 12px",borderRadius:8,border:"1px solid #ddd",fontS
 export var sB={padding:"9px 16px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT,whiteSpace:"nowrap"};
 export var sO={padding:"9px 16px",borderRadius:8,border:"1px solid #ddd",background:"#fff",color:"#555",fontSize:14,cursor:"pointer",fontFamily:FONT};
 
+// Stile delle celle festive: sfondo nero pieno con lettera F bianca centrata.
+// Usato in tutte le viste (Calendar, MiniCalendar, Panoramica) per coerenza.
+export var HOLIDAY_BG="#000";
+export var HOLIDAY_LETTER="F";
+
 // === Password policy (sicurezza/NIS2) ===
 export var DEFAULT_PASSWORD="Opex2026";
 
@@ -70,6 +75,135 @@ export function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
 export function firstDow(y,m){var d=new Date(y,m,1).getDay();return d===0?6:d-1;}
 export function hashPw(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h=h&h;}return"h_"+Math.abs(h).toString(36);}
 export function fmtNum(n){return n%1===0?n:n.toFixed(1);}
+
+// ===== Festività =====
+// Algoritmo di Gauss/Meeus per il calcolo della Domenica di Pasqua nel
+// calendario gregoriano. Restituisce un oggetto {month:0-11, day:1-31}.
+function easterSunday(year){
+  var a=year%19;
+  var b=Math.floor(year/100);
+  var c=year%100;
+  var d=Math.floor(b/4);
+  var e=b%4;
+  var f=Math.floor((b+8)/25);
+  var g=Math.floor((b-f+1)/3);
+  var h=(19*a+b-d-g+15)%30;
+  var i=Math.floor(c/4);
+  var k=c%4;
+  var L=(32+2*e+2*i-h-k)%7;
+  var m=Math.floor((a+11*h+22*L)/451);
+  var mo=Math.floor((h+L-7*m+114)/31);
+  var da=((h+L-7*m+114)%31)+1;
+  return {month:mo-1,day:da};
+}
+
+// Festivita' nazionali italiane fisse: [month0,day,label].
+// Pasqua e Pasquetta sono variabili e gestite a parte in getHolidayName.
+var FIXED_NATIONAL_HOLIDAYS=[
+  [0,1,"Capodanno"],
+  [0,6,"Epifania"],
+  [3,25,"Festa della Liberazione"],
+  [4,1,"Festa dei Lavoratori"],
+  [5,2,"Festa della Repubblica"],
+  [7,15,"Ferragosto"],
+  [10,1,"Ognissanti"],
+  [11,8,"Immacolata Concezione"],
+  [11,25,"Natale"],
+  [11,26,"Santo Stefano"]
+];
+
+// Estrae il campo "date" da un elemento di customHolidays.
+// Accetta sia stringa "YYYY-MM-DD" sia oggetto {date:"YYYY-MM-DD",label:"..."}.
+function customDate(h){
+  if(typeof h==="string")return h;
+  if(h&&typeof h==="object"&&h.date)return h.date;
+  return "";
+}
+function customLabel(h){
+  if(h&&typeof h==="object"&&h.label)return h.label;
+  return "";
+}
+
+// Nome leggibile della festivita' (se la data e' festiva), altrimenti "".
+// Ordine di precedenza: nazionale fissa > Pasqua/Pasquetta > personalizzata.
+export function getHolidayName(year,month,day,customHolidays){
+  for(var i=0;i<FIXED_NATIONAL_HOLIDAYS.length;i++){
+    var h=FIXED_NATIONAL_HOLIDAYS[i];
+    if(h[0]===month&&h[1]===day)return h[2];
+  }
+  var es=easterSunday(year);
+  if(es.month===month&&es.day===day)return "Pasqua";
+  // Lunedi' dell'Angelo = Pasqua + 1 giorno
+  var dt=new Date(year,es.month,es.day);dt.setDate(dt.getDate()+1);
+  if(dt.getFullYear()===year&&dt.getMonth()===month&&dt.getDate()===day)return "Lunedi' dell'Angelo";
+  if(customHolidays&&customHolidays.length){
+    var key=makeKey(year,month,day);
+    for(var j=0;j<customHolidays.length;j++){
+      if(customDate(customHolidays[j])===key)return customLabel(customHolidays[j])||"Festivita' personalizzata";
+    }
+  }
+  return "";
+}
+
+// True se la data e' festiva (nazionale fissa, Pasqua/Pasquetta o personalizzata).
+export function isHoliday(year,month,day,customHolidays){
+  return getHolidayName(year,month,day,customHolidays)!=="";
+}
+
+// Giorni lavorativi del mese: lun-ven, esclusi i festivi.
+// Sabato e domenica non sono mai contati; i festivi che cadono in giorni feriali
+// riducono il conteggio.
+export function countWorkDays(year,month,customHolidays){
+  var days=daysInMonth(year,month);
+  var fd=firstDow(year,month);
+  var count=0;
+  for(var d=1;d<=days;d++){
+    var dow=(fd+d-1)%7;
+    if(dow>=5)continue;
+    if(isHoliday(year,month,d,customHolidays))continue;
+    count++;
+  }
+  return count;
+}
+
+// Giorni lavorativi in un intervallo [startDay..endDay] dello stesso mese.
+// Stessa regola di countWorkDays: solo lun-ven non festivi.
+export function countWorkDaysInRange(year,month,startDay,endDay,customHolidays){
+  var fd=firstDow(year,month);
+  var count=0;
+  for(var d=startDay;d<=endDay;d++){
+    var dow=(fd+d-1)%7;
+    if(dow>=5)continue;
+    if(isHoliday(year,month,d,customHolidays))continue;
+    count++;
+  }
+  return count;
+}
+
+// Elenco di tutte le festivita' (nazionali + personalizzate) di un dato anno,
+// ordinate per data crescente. Ogni voce: {date,label,isCustom}. Usato dal
+// pannello informativo in Impostazioni.
+export function listHolidaysForYear(year,customHolidays){
+  var out=[];
+  for(var m=0;m<12;m++){
+    for(var d=1;d<=daysInMonth(year,m);d++){
+      var name=getHolidayName(year,m,d,[]);
+      if(name)out.push({date:makeKey(year,m,d),label:name,isCustom:false});
+    }
+  }
+  if(customHolidays&&customHolidays.length){
+    customHolidays.forEach(function(h){
+      var dt=customDate(h);if(!dt)return;
+      if(dt.substring(0,4)!==String(year))return;
+      var p=parseKey(dt);
+      // Se la data e' gia' coperta da una nazionale non duplichiamo
+      if(getHolidayName(p.year,p.month,p.day,[]))return;
+      out.push({date:dt,label:customLabel(h)||"Festivita' personalizzata",isCustom:true});
+    });
+  }
+  out.sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0;});
+  return out;
+}
 
 export function calcAllActuals(entries,consultants){
   var r={};consultants.forEach(function(n){var cE=entries[n]||{};Object.keys(cE).forEach(function(key){
@@ -139,7 +273,7 @@ export function calcMonthlyPlanned(clients,clientBudgets,clientEndDates,year,mon
     if(!isClientActiveInMonth(ends[c],year,month))return s;
     return s+(bud[c]||0);},0);}
 
-export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},consultantEmails:{},entries:{},admins:[],targetMensile:0,userFlags:{}};
+export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},consultantEmails:{},entries:{},admins:[],targetMensile:0,userFlags:{},customHolidays:[]};
 
 export async function loadAll(){try{var res=await fetch("/api/data?t="+Date.now());if(!res.ok)return Object.assign({},EMPTY);var d=await res.json();return Object.assign({},EMPTY,d);}catch(e){return Object.assign({},EMPTY);}}
 export async function saveAll(fd){try{var res=await fetch("/api/data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(fd)});var r=await res.json();return r.ok;}catch(e){return false;}}
@@ -158,5 +292,6 @@ export function Legenda(p){
     {hasBusy&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:CL.grey}}/><span style={{fontSize:11,color:CL.greyMd}}>Altro impegno</span></div>}
     {hasComm&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#FF8F00"}}/><span style={{fontSize:11,color:CL.greyMd}}>Commerciale OPEX</span></div>}
     {hasTrain&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#7B1FA2"}}/><span style={{fontSize:11,color:CL.greyMd}}>Formazione</span></div>}
+    <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:HOLIDAY_BG,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,fontFamily:FONT,lineHeight:1}}>{HOLIDAY_LETTER}</div><span style={{fontSize:11,color:CL.greyMd}}>Festivo</span></div>
   </div>);
 }
