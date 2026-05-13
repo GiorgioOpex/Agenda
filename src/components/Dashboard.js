@@ -1,6 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
-import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcMonthlyPlanned, isClientActiveInMonth, makeKey, daysInMonth, firstDow } from "./shared";
+import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcMonthlyPlanned, isClientActiveInMonth, makeKey, daysInMonth, firstDow, isHoliday } from "./shared";
 
 function getWeeksOfMonth(year,month){
   var days=daysInMonth(year,month),fd=firstDow(year,month),weeks=[];
@@ -13,23 +13,30 @@ function isoWeek(year,month,day){
   var jan1dow=new Date(year,0,1).getDay()||7;
   var wk=Math.floor((dayOfYear+jan1dow-2)/7)+1;return wk;}
 
-function calcWeekActuals(entries,consultants,year,month,startDay,endDay){
+// workDays: lun-ven esclusi festivi.
+// actual (effettive): lun-sab esclusi festivi (sabato incluso nelle effettive).
+function calcWeekActuals(entries,consultants,year,month,startDay,endDay,customHolidays){
   var fd=firstDow(year,month),tot=0,workHalves=0;
-  for(var d=startDay;d<=endDay;d++){if((fd+d-1)%7>=5)continue;workHalves+=2;
-    consultants.forEach(function(n){var cE=entries[n]||{};var e=cE[makeKey(year,month,d)];if(!e)return;
-      ["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client")tot+=0.5;});});}
+  for(var d=startDay;d<=endDay;d++){
+    var dow=(fd+d-1)%7;
+    var isSun=dow===6;
+    var isHol=isHoliday(year,month,d,customHolidays||[]);
+    if(dow<5&&!isHol)workHalves+=2;
+    if(!isSun&&!isHol){
+      consultants.forEach(function(n){var cE=entries[n]||{};var e=cE[makeKey(year,month,d)];if(!e)return;
+        ["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client")tot+=0.5;});});}}
   return{actual:tot,workDays:workHalves/2};}
 
 // monthlyPlanned: array di 12 elementi, una "previste" per ciascun mese
 // gia' filtrata sui contratti attivi in quel mese.
-function calcYTD(entries,consultants,year,upToMonth,upToWeekEnd,monthlyPlanned,target){
+function calcYTD(entries,consultants,year,upToMonth,upToWeekEnd,monthlyPlanned,target,customHolidays){
   var totActual=0,totPlanned=0,totTarget=0;
   for(var mi=0;mi<=upToMonth;mi++){var planned=monthlyPlanned[mi]||0;
     if(mi<upToMonth){var a=calcMonthActuals(entries,consultants,year,mi);totActual+=a.totalClient;totPlanned+=planned;totTarget+=target;}
-    else{var fd=firstDow(year,mi),days=daysInMonth(year,mi),wdM=0;for(var d=1;d<=days;d++){if((fd+d-1)%7<5)wdM++;}
-      var wdU=0;for(var d2=1;d2<=upToWeekEnd;d2++){if((fd+d2-1)%7<5)wdU++;}
+    else{var fd=firstDow(year,mi),days=daysInMonth(year,mi),wdM=0;for(var d=1;d<=days;d++){if((fd+d-1)%7<5&&!isHoliday(year,mi,d,customHolidays||[]))wdM++;}
+      var wdU=0;for(var d2=1;d2<=upToWeekEnd;d2++){if((fd+d2-1)%7<5&&!isHoliday(year,mi,d2,customHolidays||[]))wdU++;}
       var ratio=wdM>0?wdU/wdM:0;totPlanned+=planned*ratio;totTarget+=target*ratio;
-      var a2=calcWeekActuals(entries,consultants,year,mi,1,upToWeekEnd);totActual+=a2.actual;}}
+      var a2=calcWeekActuals(entries,consultants,year,mi,1,upToWeekEnd,customHolidays);totActual+=a2.actual;}}
   return{actual:totActual,planned:totPlanned,target:totTarget};}
 
 function CumulativeChart(p){
@@ -108,6 +115,7 @@ export function Dashboard(p){
   var clients=data.clients||[];
   var clientBudgets=data.clientBudgets||{};
   var clientEndDates=data.clientEndDates||{};
+  var customHolidays=data.customHolidays||[];
   var cM=new Date().getMonth();
   var vs=useState("monthly"),viewMode=vs[0],sViewMode=vs[1];
   var ws=useState(null),selWeek=ws[0],sSelWeek=ws[1];
@@ -121,13 +129,13 @@ export function Dashboard(p){
 
   var months=useMemo(function(){return MESI.map(function(nome,mi){var a=calcMonthActuals(data.entries,data.consultants,year,mi);return{nome:nome.substring(0,3),actual:a.totalClient,planned:monthlyPlanned[mi]||0,target:target,byClient:a.byClient};});},[data,year,target,monthlyPlanned]);
 
-  var weeks=useMemo(function(){var wks=getWeeksOfMonth(year,wMo);var pWMo=monthlyPlanned[wMo]||0;return wks.map(function(w){var wa=calcWeekActuals(data.entries,data.consultants,year,wMo,w.start,w.end);
+  var weeks=useMemo(function(){var wks=getWeeksOfMonth(year,wMo);var pWMo=monthlyPlanned[wMo]||0;return wks.map(function(w){var wa=calcWeekActuals(data.entries,data.consultants,year,wMo,w.start,w.end,customHolidays);
     var pR=wa.workDays>0?pWMo*(wa.workDays/20):0;var tR=wa.workDays>0?target*(wa.workDays/20):0;
     var iw=isoWeek(year,wMo,w.start);
-    return{num:w.num,start:w.start,end:w.end,actual:wa.actual,planned:pR,target:tR,workDays:wa.workDays,isoW:iw};});},[data,year,wMo,monthlyPlanned,target]);
+    return{num:w.num,start:w.start,end:w.end,actual:wa.actual,planned:pR,target:tR,workDays:wa.workDays,isoW:iw};});},[data,year,wMo,monthlyPlanned,target,customHolidays]);
 
   var ytdData=useMemo(function(){if(selWeek===null)return null;var w=weeks[selWeek];if(!w)return null;
-    return calcYTD(data.entries,data.consultants,year,wMo,w.end,monthlyPlanned,target);},[selWeek,data,year,wMo,weeks,monthlyPlanned,target]);
+    return calcYTD(data.entries,data.consultants,year,wMo,w.end,monthlyPlanned,target,customHolidays);},[selWeek,data,year,wMo,weeks,monthlyPlanned,target,customHolidays]);
 
   var maxPlanned=monthlyPlanned.length>0?Math.max.apply(null,monthlyPlanned):0;
   var mxM=Math.max(target,maxPlanned,Math.max.apply(null,months.map(function(m){return m.actual;})))||1;

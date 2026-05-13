@@ -4,18 +4,13 @@ import { useState } from "react";
 export var MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 export var GIORNI=["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
 export var CL={red:"#C41E2A",redDk:"#9B1520",grey:"#3C3C3C",greyDk:"#2A2A2A",greyMd:"#555",greyLt:"#F2F2F2"};
-export var STATI={client:{bg:CL.red,text:"#fff",label:"Cliente OPEX"},busy:{bg:CL.grey,text:"#fff",label:"Altro impegno"},commercial:{bg:"#FF8F00",text:"#fff",label:"Commerciale OPEX"},training:{bg:"#7B1FA2",text:"#fff",label:"Formazione"}};
+export var STATI={client:{bg:CL.red,text:"#fff",label:"Cliente OPEX"},busy:{bg:CL.grey,text:"#fff",label:"Altro impegno"},commercial:{bg:"#FF8F00",text:"#fff",label:"Commerciale OPEX"},training:{bg:"#7B1FA2",text:"#fff",label:"Formazione API"}};
 export var CLIENT_COLORS=["#E53935","#1E88E5","#43A047","#FB8C00","#8E24AA","#00ACC1","#D81B60","#FFB300","#5E35B1","#00897B","#F4511E","#3949AB","#7CB342","#C62828","#0288D1","#6D4C41","#26A69A","#EC407A","#5C6BC0","#2E7D32","#EF6C00","#AB47BC","#00838F","#FDD835","#AD1457","#1565C0","#4CAF50","#FF7043","#7B1FA2","#009688","#E91E63","#2196F3"];
 export var FONT="'DM Sans',sans-serif";
 export var sI={padding:"9px 12px",borderRadius:8,border:"1px solid #ddd",fontSize:14,fontFamily:FONT,flex:1,minWidth:0,boxSizing:"border-box",textTransform:"uppercase"};
 export var sIPw={padding:"9px 12px",borderRadius:8,border:"1px solid #ddd",fontSize:14,fontFamily:FONT,flex:1,minWidth:0,boxSizing:"border-box",textTransform:"none"};
 export var sB={padding:"9px 16px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT,whiteSpace:"nowrap"};
 export var sO={padding:"9px 16px",borderRadius:8,border:"1px solid #ddd",background:"#fff",color:"#555",fontSize:14,cursor:"pointer",fontFamily:FONT};
-
-// Stile delle celle festive: sfondo nero pieno con lettera F bianca centrata.
-// Usato in tutte le viste (Calendar, MiniCalendar, Panoramica) per coerenza.
-export var HOLIDAY_BG="#000";
-export var HOLIDAY_LETTER="F";
 
 // === Password policy (sicurezza/NIS2) ===
 export var DEFAULT_PASSWORD="Opex2026";
@@ -75,135 +70,6 @@ export function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
 export function firstDow(y,m){var d=new Date(y,m,1).getDay();return d===0?6:d-1;}
 export function hashPw(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h=h&h;}return"h_"+Math.abs(h).toString(36);}
 export function fmtNum(n){return n%1===0?n:n.toFixed(1);}
-
-// ===== Festività =====
-// Algoritmo di Gauss/Meeus per il calcolo della Domenica di Pasqua nel
-// calendario gregoriano. Restituisce un oggetto {month:0-11, day:1-31}.
-function easterSunday(year){
-  var a=year%19;
-  var b=Math.floor(year/100);
-  var c=year%100;
-  var d=Math.floor(b/4);
-  var e=b%4;
-  var f=Math.floor((b+8)/25);
-  var g=Math.floor((b-f+1)/3);
-  var h=(19*a+b-d-g+15)%30;
-  var i=Math.floor(c/4);
-  var k=c%4;
-  var L=(32+2*e+2*i-h-k)%7;
-  var m=Math.floor((a+11*h+22*L)/451);
-  var mo=Math.floor((h+L-7*m+114)/31);
-  var da=((h+L-7*m+114)%31)+1;
-  return {month:mo-1,day:da};
-}
-
-// Festivita' nazionali italiane fisse: [month0,day,label].
-// Pasqua e Pasquetta sono variabili e gestite a parte in getHolidayName.
-var FIXED_NATIONAL_HOLIDAYS=[
-  [0,1,"Capodanno"],
-  [0,6,"Epifania"],
-  [3,25,"Festa della Liberazione"],
-  [4,1,"Festa dei Lavoratori"],
-  [5,2,"Festa della Repubblica"],
-  [7,15,"Ferragosto"],
-  [10,1,"Ognissanti"],
-  [11,8,"Immacolata Concezione"],
-  [11,25,"Natale"],
-  [11,26,"Santo Stefano"]
-];
-
-// Estrae il campo "date" da un elemento di customHolidays.
-// Accetta sia stringa "YYYY-MM-DD" sia oggetto {date:"YYYY-MM-DD",label:"..."}.
-function customDate(h){
-  if(typeof h==="string")return h;
-  if(h&&typeof h==="object"&&h.date)return h.date;
-  return "";
-}
-function customLabel(h){
-  if(h&&typeof h==="object"&&h.label)return h.label;
-  return "";
-}
-
-// Nome leggibile della festivita' (se la data e' festiva), altrimenti "".
-// Ordine di precedenza: nazionale fissa > Pasqua/Pasquetta > personalizzata.
-export function getHolidayName(year,month,day,customHolidays){
-  for(var i=0;i<FIXED_NATIONAL_HOLIDAYS.length;i++){
-    var h=FIXED_NATIONAL_HOLIDAYS[i];
-    if(h[0]===month&&h[1]===day)return h[2];
-  }
-  var es=easterSunday(year);
-  if(es.month===month&&es.day===day)return "Pasqua";
-  // Lunedi' dell'Angelo = Pasqua + 1 giorno
-  var dt=new Date(year,es.month,es.day);dt.setDate(dt.getDate()+1);
-  if(dt.getFullYear()===year&&dt.getMonth()===month&&dt.getDate()===day)return "Lunedi' dell'Angelo";
-  if(customHolidays&&customHolidays.length){
-    var key=makeKey(year,month,day);
-    for(var j=0;j<customHolidays.length;j++){
-      if(customDate(customHolidays[j])===key)return customLabel(customHolidays[j])||"Festivita' personalizzata";
-    }
-  }
-  return "";
-}
-
-// True se la data e' festiva (nazionale fissa, Pasqua/Pasquetta o personalizzata).
-export function isHoliday(year,month,day,customHolidays){
-  return getHolidayName(year,month,day,customHolidays)!=="";
-}
-
-// Giorni lavorativi del mese: lun-ven, esclusi i festivi.
-// Sabato e domenica non sono mai contati; i festivi che cadono in giorni feriali
-// riducono il conteggio.
-export function countWorkDays(year,month,customHolidays){
-  var days=daysInMonth(year,month);
-  var fd=firstDow(year,month);
-  var count=0;
-  for(var d=1;d<=days;d++){
-    var dow=(fd+d-1)%7;
-    if(dow>=5)continue;
-    if(isHoliday(year,month,d,customHolidays))continue;
-    count++;
-  }
-  return count;
-}
-
-// Giorni lavorativi in un intervallo [startDay..endDay] dello stesso mese.
-// Stessa regola di countWorkDays: solo lun-ven non festivi.
-export function countWorkDaysInRange(year,month,startDay,endDay,customHolidays){
-  var fd=firstDow(year,month);
-  var count=0;
-  for(var d=startDay;d<=endDay;d++){
-    var dow=(fd+d-1)%7;
-    if(dow>=5)continue;
-    if(isHoliday(year,month,d,customHolidays))continue;
-    count++;
-  }
-  return count;
-}
-
-// Elenco di tutte le festivita' (nazionali + personalizzate) di un dato anno,
-// ordinate per data crescente. Ogni voce: {date,label,isCustom}. Usato dal
-// pannello informativo in Impostazioni.
-export function listHolidaysForYear(year,customHolidays){
-  var out=[];
-  for(var m=0;m<12;m++){
-    for(var d=1;d<=daysInMonth(year,m);d++){
-      var name=getHolidayName(year,m,d,[]);
-      if(name)out.push({date:makeKey(year,m,d),label:name,isCustom:false});
-    }
-  }
-  if(customHolidays&&customHolidays.length){
-    customHolidays.forEach(function(h){
-      var dt=customDate(h);if(!dt)return;
-      if(dt.substring(0,4)!==String(year))return;
-      var p=parseKey(dt);
-      // Se la data e' gia' coperta da una nazionale non duplichiamo
-      if(getHolidayName(p.year,p.month,p.day,[]))return;
-      out.push({date:dt,label:customLabel(h)||"Festivita' personalizzata",isCustom:true});
-    });
-  }
-  out.sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0;});
-  return out;
-}
 
 export function calcAllActuals(entries,consultants){
   var r={};consultants.forEach(function(n){var cE=entries[n]||{};Object.keys(cE).forEach(function(key){
@@ -273,6 +139,70 @@ export function calcMonthlyPlanned(clients,clientBudgets,clientEndDates,year,mon
     if(!isClientActiveInMonth(ends[c],year,month))return s;
     return s+(bud[c]||0);},0);}
 
+// === Festivita' ===
+export var HOLIDAY_BG="#000";
+export var HOLIDAY_LETTER="F";
+
+function calcEaster(year){
+  var a=year%19,b=Math.floor(year/100),c=year%100;
+  var d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25);
+  var g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30;
+  var i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7;
+  var m=Math.floor((a+11*h+22*l)/451);
+  var month=Math.floor((h+l-7*m+114)/31)-1;
+  var day=((h+l-7*m+114)%31)+1;
+  return{month:month,day:day};}
+
+export function isHoliday(year,month,day,customHolidays){
+  var fixed=[[0,1],[0,6],[3,25],[4,1],[5,2],[7,15],[10,1],[11,8],[11,25],[11,26]];
+  for(var i=0;i<fixed.length;i++){if(fixed[i][0]===month&&fixed[i][1]===day)return true;}
+  var e=calcEaster(year);
+  if(e.month===month&&e.day===day)return true;
+  var em=new Date(year,e.month,e.day+1);
+  if(em.getFullYear()===year&&em.getMonth()===month&&em.getDate()===day)return true;
+  var chs=customHolidays||[];
+  var key=year+"-"+String(month+1).padStart(2,"0")+"-"+String(day).padStart(2,"0");
+  for(var j=0;j<chs.length;j++){if(chs[j].date===key)return true;}
+  return false;}
+
+export function getHolidayName(year,month,day,customHolidays){
+  var labels={"1-1":"Capodanno","1-6":"Epifania","4-25":"Festa della Liberazione","5-1":"Festa del Lavoro","6-2":"Festa della Repubblica","8-15":"Ferragosto","11-1":"Ognissanti","12-8":"Immacolata Concezione","12-25":"Natale","12-26":"Santo Stefano"};
+  var k=(month+1)+"-"+day;
+  if(labels[k])return labels[k];
+  var e=calcEaster(year);
+  if(e.month===month&&e.day===day)return"Pasqua";
+  var em=new Date(year,e.month,e.day+1);
+  if(em.getFullYear()===year&&em.getMonth()===month&&em.getDate()===day)return"Pasquetta";
+  var chs=customHolidays||[];
+  var dk=year+"-"+String(month+1).padStart(2,"0")+"-"+String(day).padStart(2,"0");
+  for(var i=0;i<chs.length;i++){if(chs[i].date===dk)return chs[i].label||"Festivo";}
+  return"";}
+
+export function countWorkDays(year,month,customHolidays){
+  var fd=firstDow(year,month),days=daysInMonth(year,month),count=0;
+  for(var d=1;d<=days;d++){var dow=(fd+d-1)%7;if(dow<5&&!isHoliday(year,month,d,customHolidays))count++;}
+  return count;}
+
+export function countWorkDaysInRange(year,month,startDay,endDay,customHolidays){
+  var fd=firstDow(year,month),count=0;
+  for(var d=startDay;d<=endDay;d++){var dow=(fd+d-1)%7;if(dow<5&&!isHoliday(year,month,d,customHolidays))count++;}
+  return count;}
+
+export function listHolidaysForYear(year,customHolidays){
+  var result=[];
+  var fixed=[{m:0,d:1,l:"Capodanno"},{m:0,d:6,l:"Epifania"},{m:3,d:25,l:"Festa della Liberazione"},{m:4,d:1,l:"Festa del Lavoro"},{m:5,d:2,l:"Festa della Repubblica"},{m:7,d:15,l:"Ferragosto"},{m:10,d:1,l:"Ognissanti"},{m:11,d:8,l:"Immacolata Concezione"},{m:11,d:25,l:"Natale"},{m:11,d:26,l:"Santo Stefano"}];
+  fixed.forEach(function(f){result.push({year:year,month:f.m,day:f.d,label:f.l,isCustom:false});});
+  var e=calcEaster(year);
+  result.push({year:year,month:e.month,day:e.day,label:"Pasqua",isCustom:false});
+  var em=new Date(year,e.month,e.day+1);
+  result.push({year:year,month:em.getMonth(),day:em.getDate(),label:"Pasquetta",isCustom:false});
+  var chs=customHolidays||[];
+  chs.forEach(function(ch){
+    var parts=ch.date.split("-").map(Number);
+    if(parts.length===3)result.push({year:parts[0],month:parts[1]-1,day:parts[2],label:ch.label||"Festivo",isCustom:true});});
+  result.sort(function(a,b){return(a.month*31+a.day)-(b.month*31+b.day);});
+  return result;}
+
 export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},consultantEmails:{},entries:{},admins:[],targetMensile:0,userFlags:{},customHolidays:[]};
 
 export async function loadAll(){try{var res=await fetch("/api/data?t="+Date.now());if(!res.ok)return Object.assign({},EMPTY);var d=await res.json();return Object.assign({},EMPTY,d);}catch(e){return Object.assign({},EMPTY);}}
@@ -291,7 +221,6 @@ export function Legenda(p){
       <div style={{width:13,height:13,borderRadius:4,background:getClientColor(clients,c)}}/><span style={{fontSize:11,color:CL.greyMd}}>{c}</span></div>;})}
     {hasBusy&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:CL.grey}}/><span style={{fontSize:11,color:CL.greyMd}}>Altro impegno</span></div>}
     {hasComm&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#FF8F00"}}/><span style={{fontSize:11,color:CL.greyMd}}>Commerciale OPEX</span></div>}
-    {hasTrain&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#7B1FA2"}}/><span style={{fontSize:11,color:CL.greyMd}}>Formazione</span></div>}
-    <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:HOLIDAY_BG,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,fontFamily:FONT,lineHeight:1}}>{HOLIDAY_LETTER}</div><span style={{fontSize:11,color:CL.greyMd}}>Festivo</span></div>
+    {hasTrain&&<div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:13,height:13,borderRadius:4,background:"#7B1FA2"}}/><span style={{fontSize:11,color:CL.greyMd}}>Formazione API</span></div>}
   </div>);
 }

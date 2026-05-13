@@ -100,7 +100,7 @@ export default function App(){
     else if(half==="am"){dst.am=src.am;ent[user][toDk]=dst;var newSrc=Object.assign({},src);delete newSrc.am;if(newSrc.pm&&newSrc.pm.status)ent[user][fromDk]=newSrc;else delete ent[user][fromDk];}
     else if(half==="pm"){dst.pm=src.pm;ent[user][toDk]=dst;var newSrc2=Object.assign({},src);delete newSrc2.pm;if(newSrc2.am&&newSrc2.am.status)ent[user][fromDk]=newSrc2;else delete ent[user][fromDk];}
     nd.entries=ent;sData(nd);await saveAll(nd);},[data,user]);
-  var hSS=useCallback(async function(cl,ll,al,budgets,endDates,targetM,emails){var nd=Object.assign({},data,{consultants:cl,clients:ll,admins:al,clientBudgets:budgets,clientEndDates:endDates,targetMensile:targetM,consultantEmails:emails||{}});sData(nd);sSS(false);await saveAll(nd);},[data]);
+  var hSS=useCallback(async function(cl,ll,al,budgets,endDates,targetM,emails,customHols){var nd=Object.assign({},data,{consultants:cl,clients:ll,admins:al,clientBudgets:budgets,clientEndDates:endDates,targetMensile:targetM,consultantEmails:emails||{},customHolidays:customHols||[]});sData(nd);sSS(false);await saveAll(nd);},[data]);
   var hSE=useCallback(async function(consultantName,dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[consultantName])ent[consultantName]={};if(val)ent[consultantName][dk]=val;else delete ent[consultantName][dk];nd.entries=ent;sData(nd);await saveAll(nd);},[data]);
   var hCP=useCallback(async function(dk,entryData){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};ent[user][dk]=JSON.parse(JSON.stringify(entryData));nd.entries=ent;sData(nd);await saveAll(nd);},[data,user]);
   // Cambio mese: chiude sempre l'eventuale Report aperto, in modo che il consulente
@@ -126,7 +126,7 @@ export default function App(){
         <h2 style={{margin:0,fontSize:20,color:CL.greyDk,minWidth:200,textAlign:"center"}}>{MESI[mo]} {yr}</h2>
         <button onClick={nM} style={{background:"#fff",border:"1px solid #ddd",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:18}}>&#8250;</button></div>}
       {view!=="dashboard"&&!isAdm&&<Legenda clients={data.clients} entries={data.entries[user]||{}}/>}
-      {!isAdm&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><Calendar year={yr} month={mo} entries={data.entries[user]||{}} clients={data.clients} onDayClick={sED} onDrop={hMV} onCopy={hCP}/></div>}
+      {!isAdm&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><Calendar year={yr} month={mo} entries={data.entries[user]||{}} clients={data.clients} customHolidays={data.customHolidays||[]} onDayClick={sED} onDrop={hMV} onCopy={hCP}/></div>}
       {!isAdm&&!showReport&&(yr<new Date().getFullYear()||(yr===new Date().getFullYear()&&mo<=new Date().getMonth()))&&<div style={{textAlign:"center",marginTop:16}}><button onClick={function(){sShowReport(true);}} style={{padding:"10px 24px",borderRadius:8,border:"1px solid "+CL.red,background:"#fff",color:CL.red,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Genera Report {MESI[mo]} {yr}</button></div>}
       {!isAdm&&showReport&&function(){
         var cE=data.entries[user]||{};var dayRows=[];var trainRows=[];
@@ -172,7 +172,7 @@ export default function App(){
             <tr style={{background:"#FFF8F8"}}><td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700}} colSpan={2}>TOTALE CONSULENZA</td>
               <td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700,color:CL.red}}>{fmtNum(totGG)} giornate</td></tr>
             </tbody></table></div>}
-          {trainRows.length>0&&<div style={{overflowX:"auto"}}><h4 style={{margin:"0 0 8px",color:"#7B1FA2",fontSize:14}}>Formazione</h4><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
+          {trainRows.length>0&&<div style={{overflowX:"auto"}}><h4 style={{margin:"0 0 8px",color:"#7B1FA2",fontSize:14}}>Formazione API</h4><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
             <thead><tr style={{background:"#F3E5F5"}}>
               <th style={{padding:"8px 14px",borderBottom:"2px solid #7B1FA2",textAlign:"left"}}>Data</th>
               <th style={{padding:"8px 14px",borderBottom:"2px solid #7B1FA2",textAlign:"left"}}>Presenza</th></tr></thead>
@@ -185,9 +185,9 @@ export default function App(){
           {(dayRows.length>0||trainRows.length>0)&&<div style={{textAlign:"center",marginTop:16}}>
             <button onClick={openMail} style={{padding:"12px 30px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Conferma Report e Invia Mail</button></div>}
         </div>);}()}
-      {isAdm&&view==="admin"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Panoramica - {MESI[mo]} {yr}</h3><Panoramica entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} year={yr} month={mo}/></div>}
+      {isAdm&&view==="admin"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Panoramica - {MESI[mo]} {yr}</h3><Panoramica entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} customHolidays={data.customHolidays||[]} year={yr} month={mo}/></div>}
       {isAdm&&view==="client"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Cliente - {MESI[mo]} {yr}</h3><VistaCliente entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} year={yr} month={mo}/></div>}
-      {isAdm&&view==="report"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Consulente - {MESI[mo]} {yr}</h3><Consuntivo entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} year={yr} month={mo} onSaveEntry={hSE}/></div>}
+      {isAdm&&view==="report"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Consulente - {MESI[mo]} {yr}</h3><Consuntivo entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} customHolidays={data.customHolidays||[]} year={yr} month={mo} onSaveEntry={hSE}/></div>}
       {isAdm&&view==="dashboard"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Dashboard - {yr}</h3><Dashboard data={data} year={yr}/></div>}</div>
     {editDay&&<DayModal dk={editDay} entry={(data.entries[user]||{})[editDay]} clients={data.clients} clientEndDates={data.clientEndDates} onSave={hSD} onClose={function(){sED(null);}}/>}
     {showS&&<Impostazioni data={data} onSave={hSS} onClose={function(){sSS(false);}}/>}

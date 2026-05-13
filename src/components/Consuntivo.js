@@ -1,10 +1,10 @@
 "use client";
 import { useState, useMemo } from "react";
-import { MESI, GIORNI, CL, FONT, sI, sB, sO, fmtNum, makeKey, parseKey, daysInMonth, firstDow, STATI, getHalfBg, getClientColor } from "./shared";
+import { MESI, GIORNI, CL, FONT, sI, sB, sO, fmtNum, makeKey, parseKey, daysInMonth, firstDow, STATI, getHalfBg, getClientColor, isHoliday, HOLIDAY_BG, HOLIDAY_LETTER } from "./shared";
 import { DayModal } from "./DayModal";
 
 function MiniCalendar(p){
-  var name=p.name,entries=p.entries,clients=p.clients,clientEndDates=p.clientEndDates||{},year=p.year,month=p.month,onSave=p.onSave,onBack=p.onBack;
+  var name=p.name,entries=p.entries,clients=p.clients,clientEndDates=p.clientEndDates||{},year=p.year,month=p.month,onSave=p.onSave,onBack=p.onBack,customHolidays=p.customHolidays||[];
   var days=daysInMonth(year,month),fd=firstDow(year,month),cells=[];
   for(var i=0;i<fd;i++)cells.push(null);for(var dd=1;dd<=days;dd++)cells.push(dd);
   var today=new Date();var cE=entries[name]||{};
@@ -29,7 +29,8 @@ function MiniCalendar(p){
   function handleCellClick(key,en,e){
     var parts=key.split("-").map(Number);var dd=parts[2];
     var isSun=(fd+dd-1)%7===6;
-    if(isSun)return;
+    var isHol=isHoliday(year,month,dd,customHolidays);
+    if(isSun||isHol)return;
     if(copyData){
       if(!isSlotFree(en,"am")||!isSlotFree(en,"pm")){alert("La destinazione e' gia' occupata");return;}
       onSave(name,key,JSON.parse(JSON.stringify(copyData)));
@@ -63,6 +64,7 @@ function MiniCalendar(p){
     <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>{cells.map(function(d,i){
       if(!d)return<div key={"e"+i}/>;
       var key=makeKey(year,month,d),en=cE[key];
+      var isHol=isHoliday(year,month,d,customHolidays);
       var amBg=getHalfBg(en&&en.am?en.am:null,clients);
       var pmBg=getHalfBg(en&&en.pm?en.pm:null,clients);
       var amLbl=halfLabel(en&&en.am?en.am:null);
@@ -70,21 +72,22 @@ function MiniCalendar(p){
       var isSun=(fd+d-1)%7===6;
       var has=amBg!=="transparent"||pmBg!=="transparent";
       var isT=d&&today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===d;
-      var canPaste=copyData&&!isSun&&isSlotFree(en,"am")&&isSlotFree(en,"pm");
-      return(<div key={key} onClick={function(e){if(!isSun)handleCellClick(key,en,e);}} style={{
+      var canPaste=copyData&&!isSun&&!isHol&&isSlotFree(en,"am")&&isSlotFree(en,"pm");
+      return(<div key={key} onClick={function(e){if(!isSun&&!isHol)handleCellClick(key,en,e);}} style={{
         position:"relative",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",
         borderRadius:6,overflow:"hidden",
-        cursor:isSun?"default":(copyData?(canPaste?"pointer":"not-allowed"):"pointer"),
+        cursor:isHol?"default":isSun?"default":(copyData?(canPaste?"pointer":"not-allowed"):"pointer"),
         border:canPaste?"2px dashed #A5D6A7":isT?"2px solid "+CL.red:"1px solid #e8e8e8",
-        background:isSun?"#f0f0f0":(canPaste?"#E8F5E9":"#fafafa"),
+        background:isHol?HOLIDAY_BG:isSun?"#f0f0f0":(canPaste?"#E8F5E9":"#fafafa"),
         userSelect:"none",
-        opacity:copyData&&!canPaste&&!has?0.4:1
+        opacity:copyData&&!canPaste&&!has&&!isHol?0.4:1
       }}>
-        {has&&!isSun&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column"}}>
+        {isHol&&<span style={{fontSize:13,fontWeight:700,color:"#fff",userSelect:"none"}}>{HOLIDAY_LETTER}</span>}
+        {!isHol&&has&&!isSun&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column"}}>
           <div style={{flex:1,background:amBg,opacity:.85,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>{amLbl&&<span style={{fontSize:5,fontWeight:600,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%",padding:"0 1px"}}>{amLbl}</span>}</div>
           <div style={{flex:1,background:pmBg,opacity:.85,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>{pmLbl&&<span style={{fontSize:5,fontWeight:600,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%",padding:"0 1px"}}>{pmLbl}</span>}</div>
         </div>}
-        <span style={{position:"relative",zIndex:1,fontSize:12,fontWeight:isT?700:500,color:has&&!isSun?"#fff":isSun?"#ccc":"#444"}}>{d}</span>
+        {!isHol&&<span style={{position:"relative",zIndex:1,fontSize:12,fontWeight:isT?700:500,color:has&&!isSun?"#fff":isSun?"#ccc":"#444"}}>{d}</span>}
       </div>);
     })}</div>
 
@@ -175,7 +178,7 @@ function ConsDetail(p){
     if(trainDays.length>0){var tGrouped={};trainDays.forEach(function(it){if(!tGrouped[it.day])tGrouped[it.day]=[];tGrouped[it.day].push(it.half);});
       var tGiorni=[];Object.keys(tGrouped).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(d){var hh=tGrouped[d];
         if(hh.length===2)tGiorni.push(d+" (intera)");else if(hh[0]==="am")tGiorni.push(d+" (mattina)");else tGiorni.push(d+" (pomeriggio)");});
-      rows.push({type:"training",label:"FORMAZIONE",gg:trainDays.length*0.5,giorni:tGiorni});}
+      rows.push({type:"training",label:"FORMAZIONE API",gg:trainDays.length*0.5,giorni:tGiorni});}
     if(busyDays.length>0){var bGrouped={};busyDays.forEach(function(it){if(!bGrouped[it.day])bGrouped[it.day]=[];bGrouped[it.day].push(it.half);});
       var bGiorni=[];Object.keys(bGrouped).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(d){var hh=bGrouped[d];
         if(hh.length===2)bGiorni.push(d+" (intera)");else if(hh[0]==="am")bGiorni.push(d+" (mattina)");else bGiorni.push(d+" (pomeriggio)");});
@@ -224,7 +227,7 @@ function ConsDetail(p){
 }
 
 export function Consuntivo(p){
-  var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},clientEndDates=p.clientEndDates||{},year=p.year,month=p.month,onSaveEntry=p.onSaveEntry;
+  var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},clientEndDates=p.clientEndDates||{},year=p.year,month=p.month,onSaveEntry=p.onSaveEntry,customHolidays=p.customHolidays||[];
   var cs=useState(null),selCons=cs[0],sSelCons=cs[1];
   var ms=useState(null),selMode=ms[0],sSelMode=ms[1];
   var report=useMemo(function(){var d={};cons.forEach(function(n){d[n]={tc:0,tb:0,tcom:0,ttrain:0,bc:{}};clients.forEach(function(c){d[n].bc[c]=0;});
@@ -234,7 +237,7 @@ export function Consuntivo(p){
   var mc=useState(null),menuCons=mc[0],sMenuCons=mc[1];
   var mr=useState(null),menuRect=mr[0],sMenuRect=mr[1];
 
-  if(selCons&&selMode==="agenda")return<MiniCalendar name={selCons} entries={entries} clients={clients} clientEndDates={clientEndDates} year={year} month={month} onSave={onSaveEntry} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
+  if(selCons&&selMode==="agenda")return<MiniCalendar name={selCons} entries={entries} clients={clients} clientEndDates={clientEndDates} customHolidays={customHolidays} year={year} month={month} onSave={onSaveEntry} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
   if(selCons&&selMode==="detail")return<ConsDetail name={selCons} entries={entries} clients={clients} year={year} month={month} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
 
   return(<div>

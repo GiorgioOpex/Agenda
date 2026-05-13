@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { CL, FONT, MESI, sI, sIPw, sB, sO, fmtNum, hashPw, calcMonthlyPlanned } from "./shared";
+import { CL, FONT, MESI, sI, sIPw, sB, sO, fmtNum, hashPw, calcMonthlyPlanned, listHolidaysForYear } from "./shared";
 
 export function Impostazioni(p){
   var data=p.data,onSave=p.onSave,onClose=p.onClose;
@@ -9,6 +9,7 @@ export function Impostazioni(p){
   var ed1=useState(Object.assign({},data.clientEndDates||{})),endD=ed1[0],sEndD=ed1[1];
   var ce1=useState(Object.assign({},data.consultantEmails||{})),cEmails=ce1[0],sCEmails=ce1[1];
   var t1=useState(data.targetMensile||0),tM=t1[0],sTM=t1[1];
+  var ch1=useState([].concat(data.customHolidays||[])),cHols=ch1[0],sCHols=ch1[1];
   var nc1=useState(""),nc=nc1[0],sNc=nc1[1];var ne1=useState(""),nce=ne1[0],sNce=ne1[1];var nl1=useState(""),nl=nl1[0],sNl=nl1[1];
   var na1=useState(""),na=na1[0],sNa=na1[1];var np1=useState(""),np=np1[0],sNp=np1[1];
   var n21=useState(""),np2=n21[0],sN2=n21[1];var am1=useState(""),am=am1[0],sAm=am1[1];
@@ -16,11 +17,13 @@ export function Impostazioni(p){
   var er1=useState(""),saveErr=er1[0],sSaveErr=er1[1];
   var rs1=useState(""),resetMsg=rs1[0],sResetMsg=rs1[1];
   var rs2=useState(""),resetting=rs2[0],sResetting=rs2[1];
-  // Stato di ordinamento per la tab "Clienti e Budget" — solo visualizzazione,
-  // non modifica l'ordine salvato in DB.
+  // Stato nuova festivita' personalizzata
+  var nhd1=useState(""),nhDate=nhd1[0],sNhDate=nhd1[1];
+  var nhl1=useState(""),nhLabel=nhl1[0],sNhLabel=nhl1[1];
+  // Ordinamento tab Clienti
   var sk1=useState("name"),clSortKey=sk1[0],sClSortKey=sk1[1];
   var sd1=useState("asc"),clSortDir=sd1[0],sClSortDir=sd1[1];
-  // Stato di ordinamento per la tab "Consulenti".
+  // Ordinamento tab Consulenti
   var sk2=useState("name"),pSortKey=sk2[0],sPSortKey=sk2[1];
   var sd2=useState("asc"),pSortDir=sd2[0],sPSortDir=sd2[1];
 
@@ -39,7 +42,7 @@ export function Impostazioni(p){
   async function doSave(){
     var err=validateClients();if(!err)err=validateConsultants();
     if(err){sSaveErr(err);return;}
-    sSaveErr("");sSv(true);await onSave(cl,ll,al,bud,endD,tM,cEmails);sSv(false);}
+    sSaveErr("");sSv(true);await onSave(cl,ll,al,bud,endD,tM,cEmails,cHols);sSv(false);}
   function missingBud(c){return !bud[c]||bud[c]<=0;}
   function missingEnd(c){return !endD[c];}
 
@@ -63,70 +66,48 @@ export function Impostazioni(p){
     setTimeout(function(){sResetMsg("");},10000);
   }
 
-  // Helpers ordinamento (tab Clienti e tab Consulenti)
-  function onClSort(key){
-    if(clSortKey===key){sClSortDir(clSortDir==="asc"?"desc":"asc");}
-    else{sClSortKey(key);sClSortDir("asc");}
-  }
-  function clArrow(key){
-    if(clSortKey!==key)return <span style={{marginLeft:4,fontSize:9,color:"#bbb"}}>⇅</span>;
-    return <span style={{marginLeft:4,fontSize:9,color:CL.red}}>{clSortDir==="asc"?"▲":"▼"}</span>;
-  }
-  function onPSort(key){
-    if(pSortKey===key){sPSortDir(pSortDir==="asc"?"desc":"asc");}
-    else{sPSortKey(key);sPSortDir("asc");}
-  }
-  function pArrow(key){
-    if(pSortKey!==key)return <span style={{marginLeft:4,fontSize:9,color:"#bbb"}}>⇅</span>;
-    return <span style={{marginLeft:4,fontSize:9,color:CL.red}}>{pSortDir==="asc"?"▲":"▼"}</span>;
-  }
+  // Helpers ordinamento
+  function onClSort(key){if(clSortKey===key){sClSortDir(clSortDir==="asc"?"desc":"asc");}else{sClSortKey(key);sClSortDir("asc");}}
+  function clArrow(key){if(clSortKey!==key)return <span style={{marginLeft:4,fontSize:9,color:"#bbb"}}>⇅</span>;return <span style={{marginLeft:4,fontSize:9,color:CL.red}}>{clSortDir==="asc"?"▲":"▼"}</span>;}
+  function onPSort(key){if(pSortKey===key){sPSortDir(pSortDir==="asc"?"desc":"asc");}else{sPSortKey(key);sPSortDir("asc");}}
+  function pArrow(key){if(pSortKey!==key)return <span style={{marginLeft:4,fontSize:9,color:"#bbb"}}>⇅</span>;return <span style={{marginLeft:4,fontSize:9,color:CL.red}}>{pSortDir==="asc"?"▲":"▼"}</span>;}
 
-  // Lista clienti ordinata per la sola visualizzazione
   function getSortedClients(){
     return ll.slice().sort(function(a,b){
       var va,vb,isStr=false;
-      switch(clSortKey){
-        case "name": va=a; vb=b; isStr=true; break;
-        case "bud": va=bud[a]||0; vb=bud[b]||0; break;
-        case "end": va=endD[a]||""; vb=endD[b]||""; isStr=true; break;
-        default: va=a; vb=b; isStr=true;
-      }
-      var diff;
-      if(isStr){diff=String(va).localeCompare(String(vb),'it');}
-      else{diff=(va-vb);}
+      switch(clSortKey){case "name": va=a; vb=b; isStr=true; break;case "bud": va=bud[a]||0; vb=bud[b]||0; break;case "end": va=endD[a]||""; vb=endD[b]||""; isStr=true; break;default: va=a; vb=b; isStr=true;}
+      var diff;if(isStr){diff=String(va).localeCompare(String(vb),'it');}else{diff=(va-vb);}
       if(diff===0)diff=a.localeCompare(b,'it');
-      return clSortDir==="asc"?diff:-diff;
-    });
-  }
+      return clSortDir==="asc"?diff:-diff;});}
   function getSortedConsultants(){
     return cl.slice().sort(function(a,b){
       var va,vb;
-      switch(pSortKey){
-        case "name": va=a; vb=b; break;
-        case "email": va=(cEmails[a]||"").toLowerCase(); vb=(cEmails[b]||"").toLowerCase(); break;
-        default: va=a; vb=b;
-      }
+      switch(pSortKey){case "name": va=a; vb=b; break;case "email": va=(cEmails[a]||"").toLowerCase(); vb=(cEmails[b]||"").toLowerCase(); break;default: va=a; vb=b;}
       var diff=String(va).localeCompare(String(vb),'it');
       if(diff===0)diff=a.localeCompare(b,'it');
-      return pSortDir==="asc"?diff:-diff;
-    });
-  }
+      return pSortDir==="asc"?diff:-diff;});}
 
-  // Riepilogo richieste sotto la lista clienti.
-  // - "Mese corrente": somma dei gg/mese dei soli contratti attivi nel mese di oggi
-  //   (quello che l'organizzazione deve effettivamente coprire). Calcolato ad ogni
-  //   render in modo che si aggiorni live mentre admin modifica scadenze/budget.
-  // - "Totale configurato": somma piatta di tutti i gg/mese (senza filtro scadenze).
-  //   Tenuto come informazione di servizio per chi sta editando, ma chiaramente
-  //   etichettato come "tutti i contratti, senza filtro scadenze".
+  // Riepilogo richieste
   var nowD=new Date(),curY=nowD.getFullYear(),curM=nowD.getMonth();
   var requestedThisMonth=calcMonthlyPlanned(ll,bud,endD,curY,curM);
   var activeClientsThisMonth=ll.filter(function(c){
-    if(!endD[c])return true;
-    var end=new Date(endD[c]);if(isNaN(end.getTime()))return true;
-    return end>=new Date(curY,curM,1);
-  }).length;
+    if(!endD[c])return true;var end=new Date(endD[c]);if(isNaN(end.getTime()))return true;
+    return end>=new Date(curY,curM,1);}).length;
   var totalConfigured=ll.reduce(function(s,c){return s+(bud[c]||0);},0);
+
+  // Festivita': lista nazionale + personalizzate per l'anno corrente
+  var allHolidaysCurYear=listHolidaysForYear(curY,cHols);
+  var nationalOnly=listHolidaysForYear(curY,[]);
+
+  function addHoliday(){
+    if(!nhDate){return;}
+    for(var i=0;i<cHols.length;i++){if(cHols[i].date===nhDate){alert("Questa data e' gia' presente");return;}}
+    sCHols([].concat(cHols,[{date:nhDate,label:nhLabel.trim()||"Festivo aziendale"}]));
+    sNhDate("");sNhLabel("");}
+  function removeHoliday(date){sCHols(cHols.filter(function(h){return h.date!==date;}));}
+
+  function fmtHolDate(h){
+    return h.day+" "+MESI[h.month];}
 
   var sReset={padding:"4px 8px",borderRadius:6,border:"1px solid "+CL.red,background:"#fff",color:CL.red,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:FONT,whiteSpace:"nowrap"};
   var sortBtn={padding:"4px 10px",borderRadius:6,border:"1px solid #ddd",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:FONT,color:CL.greyDk,fontWeight:600};
@@ -134,7 +115,7 @@ export function Impostazioni(p){
   return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
     <div onClick={function(e){e.stopPropagation();}} style={{background:"#fff",borderRadius:16,padding:28,width:560,maxWidth:"94vw",maxHeight:"88vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.2)",fontFamily:FONT}}>
       <h3 style={{margin:"0 0 16px",fontSize:20,color:CL.greyDk}}>Gestione</h3>
-      <div style={{display:"flex",gap:4,marginBottom:20,flexWrap:"wrap"}}>{[["people","Consulenti"],["clients","Clienti e Budget"],["target","Target"],["admins","Admin"]].map(function(t){return<button key={t[0]} onClick={function(){sTab(t[0]);sSaveErr("");sResetMsg("");}} style={{padding:"8px 14px",borderRadius:8,border:"none",fontSize:12,fontWeight:tab===t[0]?700:400,cursor:"pointer",fontFamily:FONT,background:tab===t[0]?CL.red:"#f0f0f0",color:tab===t[0]?"#fff":CL.greyMd}}>{t[1]}</button>;})}</div>
+      <div style={{display:"flex",gap:4,marginBottom:20,flexWrap:"wrap"}}>{[["people","Consulenti"],["clients","Clienti e Budget"],["target","Target"],["holidays","Festivita'"],["admins","Admin"]].map(function(t){return<button key={t[0]} onClick={function(){sTab(t[0]);sSaveErr("");sResetMsg("");}} style={{padding:"8px 14px",borderRadius:8,border:"none",fontSize:12,fontWeight:tab===t[0]?700:400,cursor:"pointer",fontFamily:FONT,background:tab===t[0]?CL.red:"#f0f0f0",color:tab===t[0]?"#fff":CL.greyMd}}>{t[1]}</button>;})}</div>
 
       {resetMsg&&<div style={{marginBottom:14,padding:"10px 14px",background:resetMsg.indexOf("Errore")===0?"#FFF3F3":"#E8F5E9",borderRadius:8,border:"1px solid "+(resetMsg.indexOf("Errore")===0?"#e53935":"#2E7D32")}}>
         <span style={{fontSize:12,color:resetMsg.indexOf("Errore")===0?"#e53935":"#2E7D32",fontWeight:600}}>{resetMsg}</span>
@@ -176,8 +157,6 @@ export function Impostazioni(p){
           </div>}
         </div>;})}
         <div style={{display:"flex",gap:8,marginTop:6}}><input value={nl} onChange={function(e){sNl(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&nl.trim()){sLl([].concat(ll,[nl.trim().toUpperCase()]));sNl("");}}} placeholder="Nuovo cliente..." style={sI}/><button onClick={function(){if(nl.trim()){sLl([].concat(ll,[nl.trim().toUpperCase()]));sNl("");}}} style={sB}>+</button></div>
-        {/* Riepilogo: il dato "vero" e' il mese corrente (al netto delle scadenze).
-            Il totale configurato e' tenuto come dato di servizio, chiaramente etichettato. */}
         <div style={{marginTop:12,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8}}>
           <div style={{padding:"10px 14px",background:"#FFF3F3",borderRadius:8,border:"1px solid "+CL.red}}>
             <div style={{fontSize:11,color:CL.greyMd}}>Richieste {MESI[curM]} {curY}</div>
@@ -198,6 +177,30 @@ export function Impostazioni(p){
 
       {tab==="target"&&<div><h4 style={{margin:"0 0 10px",color:CL.red}}>Target mensile OPEX</h4><p style={{fontSize:13,color:CL.greyMd,marginBottom:12}}>Obiettivo giornate fatturabili al mese.</p>
         <div style={{display:"flex",alignItems:"center",gap:10}}><input type="number" min="0" step="1" value={tM||""} onChange={function(e){sTM(parseFloat(e.target.value)||0);}} style={Object.assign({},sI,{flex:"none",width:120,fontSize:20,textAlign:"center",padding:"12px",border:"2px solid "+CL.red,fontWeight:700})}/><span style={{fontSize:14,color:CL.greyMd}}>gg/mese</span></div></div>}
+
+      {tab==="holidays"&&<div>
+        <h4 style={{margin:"0 0 6px",color:CL.red}}>Festivita' nazionali {curY}</h4>
+        <p style={{fontSize:12,color:CL.greyMd,marginBottom:10}}>Automatiche: Pasqua e Pasquetta calcolate ogni anno. Non modificabili.</p>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:20}}>
+          {nationalOnly.map(function(h,i){return<div key={i} style={{padding:"4px 10px",borderRadius:6,background:CL.greyLt,border:"1px solid #ddd",fontSize:12,color:CL.greyDk}}>
+            <span style={{fontWeight:600}}>{fmtHolDate(h)}</span><span style={{color:CL.greyMd}}> — {h.label}</span>
+          </div>;})}
+        </div>
+        <h4 style={{margin:"0 0 6px",color:CL.red}}>Festivita' aziendali personalizzate</h4>
+        <p style={{fontSize:12,color:CL.greyMd,marginBottom:10}}>Giornate extra (es. ponti aziendali, chiusure). Vengono marcate come festivi in tutto il calendario.</p>
+        {cHols.length===0&&<p style={{fontSize:12,color:"#bbb",marginBottom:10}}>Nessuna festivita' personalizzata configurata.</p>}
+        {cHols.map(function(h,i){return<div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+          <span style={{flex:1,padding:"6px 10px",background:"#FFF3F3",borderRadius:6,fontSize:13,border:"1px solid #FFCDD2"}}>
+            <span style={{fontWeight:600}}>{h.date}</span><span style={{color:CL.greyMd}}> — {h.label}</span>
+          </span>
+          <button onClick={function(){removeHoliday(h.date);}} style={{background:"none",border:"none",color:CL.red,cursor:"pointer",fontSize:18,lineHeight:1}}>x</button>
+        </div>;})}
+        <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap",alignItems:"center"}}>
+          <input type="date" value={nhDate} onChange={function(e){sNhDate(e.target.value);}} style={Object.assign({},sI,{flex:"0 0 140px",padding:"7px 8px",fontSize:12})}/>
+          <input value={nhLabel} onChange={function(e){sNhLabel(e.target.value);}} placeholder="Descrizione (es. Ponte aziendale)" style={Object.assign({},sI,{flex:"1 1 180px",fontSize:12})}/>
+          <button onClick={addHoliday} disabled={!nhDate} style={Object.assign({},sB,{opacity:nhDate?1:0.4})}>+</button>
+        </div>
+      </div>}
 
       {tab==="admins"&&<div><h4 style={{margin:"0 0 10px",color:CL.red}}>Admin attivi</h4>
         {al.slice().sort(function(a,b){return a.name.localeCompare(b.name,'it');}).map(function(a){return<div key={a.name} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>

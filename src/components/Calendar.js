@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
-import { GIORNI, CL, FONT, makeKey, daysInMonth, firstDow, getHalfBg, getInitials } from "./shared";
+import { GIORNI, CL, FONT, makeKey, daysInMonth, firstDow, getHalfBg, getInitials, isHoliday, HOLIDAY_BG, HOLIDAY_LETTER } from "./shared";
 
 export function Calendar(p){
-  var year=p.year,month=p.month,entries=p.entries,clients=p.clients||[],oDC=p.onDayClick,onDrop=p.onDrop,onCopy=p.onCopy;
+  var year=p.year,month=p.month,entries=p.entries,clients=p.clients||[],oDC=p.onDayClick,onDrop=p.onDrop,onCopy=p.onCopy,customHolidays=p.customHolidays||[];
   var days=daysInMonth(year,month),fd=firstDow(year,month),cells=[];
   for(var i=0;i<fd;i++)cells.push(null);for(var dd=1;dd<=days;dd++)cells.push(dd);
   var today=new Date();
@@ -26,8 +26,10 @@ export function Calendar(p){
 
   function handleCellClick(key,en,e){
     if(dragInfo){return;}
-    var p2=key.split("-").map(Number);var dd=p2[2];var we=(fd+dd-1)%7===6;
-    if(we)return;
+    var p2=key.split("-").map(Number);var dd=p2[2];
+    var we=(fd+dd-1)%7===6;
+    var isHol=isHoliday(year,month,dd,customHolidays);
+    if(we||isHol)return;
     if(copyData){
       if(!isSlotFree(en,"am")||!isSlotFree(en,"pm")){alert("La destinazione e' gia' occupata");return;}
       if(onCopy)onCopy(key,copyData);
@@ -40,7 +42,8 @@ export function Calendar(p){
   function handleTargetClick(key,d){
     if(!dragInfo)return;
     var we=(fd+d-1)%7===6;
-    if(we||key===dragInfo.key){cancelDrag();return;}
+    var isHol=isHoliday(year,month,d,customHolidays);
+    if(we||isHol||key===dragInfo.key){cancelDrag();return;}
     if(!canDrop(key,dragInfo)){alert("Lo slot di destinazione e' gia' occupato");return;}
     if(onDrop)onDrop(dragInfo.key,key,dragInfo.entry,dragInfo.half);
     cancelDrag();
@@ -58,36 +61,40 @@ export function Calendar(p){
     </div>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>{cells.map(function(d,i){
       if(!d)return<div key={"e"+i}/>;var key=makeKey(year,month,d),en=entries[key];
+      var isHol=isHoliday(year,month,d,customHolidays);
       var amBg=getHalfBg(en&&en.am?en.am:null,clients);
       var pmBg=getHalfBg(en&&en.pm?en.pm:null,clients);
       var we=(fd+d-1)%7===6,isSat=(fd+d-1)%7===5,has=amBg!=="transparent"||pmBg!=="transparent";
       var isT=d&&today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===d;
       var isDragSrc=dragInfo&&dragInfo.key===key;
       var isDragTgt=dragOver===key;
-      var canBeTarget=dragInfo&&!we&&key!==dragInfo.key&&canDrop(key,dragInfo);
-      var isBlocked=dragInfo&&!we&&key!==dragInfo.key&&!canDrop(key,dragInfo);
-      var canPaste=copyData&&!we&&isSlotFree(en,"am")&&isSlotFree(en,"pm");
+      var canBeTarget=dragInfo&&!we&&!isHol&&key!==dragInfo.key&&canDrop(key,dragInfo);
+      var isBlocked=dragInfo&&!we&&!isHol&&key!==dragInfo.key&&!canDrop(key,dragInfo);
+      var canPaste=copyData&&!we&&!isHol&&isSlotFree(en,"am")&&isSlotFree(en,"pm");
 
       return(<div key={key}
         onClick={function(e){
+          if(isHol)return;
           if(dragInfo){handleTargetClick(key,d);return;}
           handleCellClick(key,en,e);
         }}
         onMouseEnter={function(e){
+          if(isHol)return;
           if(dragInfo&&canBeTarget)sDragOver(key);
           else if(!dragInfo&&!we)e.currentTarget.style.transform="scale(1.08)";
         }}
         onMouseLeave={function(e){
           if(dragOver===key)sDragOver(null);
-          e.currentTarget.style.transform="scale(1)";
+          if(!isHol)e.currentTarget.style.transform="scale(1)";
         }}
         style={{position:"relative",aspectRatio:"1",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:8,overflow:"hidden",
-          cursor:dragInfo?(canBeTarget?"pointer":isDragSrc?"default":"not-allowed"):copyData?(canPaste?"pointer":"not-allowed"):we?"default":"pointer",
+          cursor:isHol?"default":dragInfo?(canBeTarget?"pointer":isDragSrc?"default":"not-allowed"):copyData?(canPaste?"pointer":"not-allowed"):we?"default":"pointer",
           border:isDragTgt?"2px dashed #F0C040":canPaste?"2px dashed #A5D6A7":isT?"2px solid "+CL.red:"1px solid #e8e8e8",
-          background:isDragSrc?"#FFE0B2":isDragTgt?"#FFF8E1":we?"#f0f0f0":canBeTarget?"#FFFDE7":isBlocked?"#f8f8f8":canPaste?"#E8F5E9":isSat?"#f7f5f0":"#fafafa",
+          background:isHol?HOLIDAY_BG:isDragSrc?"#FFE0B2":isDragTgt?"#FFF8E1":we?"#f0f0f0":canBeTarget?"#FFFDE7":isBlocked?"#f8f8f8":canPaste?"#E8F5E9":isSat?"#f7f5f0":"#fafafa",
           transition:"all .15s",userSelect:"none",opacity:isDragSrc?0.5:isBlocked?0.4:copyData&&!canPaste&&!has?0.4:1}}>
-        {has&&!we&&!isDragSrc&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column"}}><div style={{flex:1,background:amBg,opacity:.88,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>{en&&en.am&&en.am.status==="client"&&en.am.client&&<span style={{fontSize:6,fontWeight:600,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%",padding:"0 1px"}}>{en.am.client.toUpperCase()}</span>}{en&&en.am&&en.am.status==="commercial"&&<span style={{fontSize:5,fontWeight:700,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",letterSpacing:.3}}>COMMERCIALE</span>}{en&&en.am&&en.am.status==="training"&&<span style={{fontSize:5,fontWeight:700,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",letterSpacing:.3}}>FORMAZIONE</span>}</div><div style={{flex:1,background:pmBg,opacity:.88,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>{en&&en.pm&&en.pm.status==="client"&&en.pm.client&&<span style={{fontSize:6,fontWeight:600,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%",padding:"0 1px"}}>{en.pm.client.toUpperCase()}</span>}{en&&en.pm&&en.pm.status==="commercial"&&<span style={{fontSize:5,fontWeight:700,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",letterSpacing:.3}}>COMMERCIALE</span>}{en&&en.pm&&en.pm.status==="training"&&<span style={{fontSize:5,fontWeight:700,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",letterSpacing:.3}}>FORMAZIONE</span>}</div></div>}
-        <span style={{position:"relative",zIndex:1,fontSize:13,fontWeight:isT?700:500,color:has&&!we&&!isDragSrc?"#fff":we?"#bbb":"#444",textShadow:has&&!we&&!isDragSrc?"0 1px 2px rgba(0,0,0,.3)":"none"}}>{d}</span>
+        {isHol&&<span style={{fontSize:15,fontWeight:700,color:"#fff",userSelect:"none"}}>{HOLIDAY_LETTER}</span>}
+        {!isHol&&has&&!we&&!isDragSrc&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column"}}><div style={{flex:1,background:amBg,opacity:.88,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>{en&&en.am&&en.am.status==="client"&&en.am.client&&<span style={{fontSize:6,fontWeight:600,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%",padding:"0 1px"}}>{en.am.client.toUpperCase()}</span>}{en&&en.am&&en.am.status==="commercial"&&<span style={{fontSize:5,fontWeight:700,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",letterSpacing:.3}}>COMMERCIALE</span>}{en&&en.am&&en.am.status==="training"&&<span style={{fontSize:5,fontWeight:700,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",letterSpacing:.3}}>FORMAZIONE</span>}</div><div style={{flex:1,background:pmBg,opacity:.88,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>{en&&en.pm&&en.pm.status==="client"&&en.pm.client&&<span style={{fontSize:6,fontWeight:600,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%",padding:"0 1px"}}>{en.pm.client.toUpperCase()}</span>}{en&&en.pm&&en.pm.status==="commercial"&&<span style={{fontSize:5,fontWeight:700,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",letterSpacing:.3}}>COMMERCIALE</span>}{en&&en.pm&&en.pm.status==="training"&&<span style={{fontSize:5,fontWeight:700,color:"#fff",textShadow:"0 1px 1px rgba(0,0,0,.5)",letterSpacing:.3}}>FORMAZIONE</span>}</div></div>}
+        {!isHol&&<span style={{position:"relative",zIndex:1,fontSize:13,fontWeight:isT?700:500,color:has&&!we&&!isDragSrc?"#fff":we?"#bbb":"#444",textShadow:has&&!we&&!isDragSrc?"0 1px 2px rgba(0,0,0,.3)":"none"}}>{d}</span>}
       </div>);})}</div>
 
     {menu&&<div style={{position:"fixed",inset:0,zIndex:999}} onClick={function(){sMenu(null);}}>
