@@ -16,7 +16,7 @@ function isoWeek(year,month,day){
 // workDays: lun-ven esclusi festivi.
 // actual (effettive): lun-sab esclusi festivi (sabato incluso nelle effettive).
 function calcWeekActuals(entries,consultants,year,month,startDay,endDay,customHolidays){
-  var fd=firstDow(year,month),tot=0,workHalves=0;
+  var fd=firstDow(year,month),tot=0,workHalves=0,totTrain=0;
   for(var d=startDay;d<=endDay;d++){
     var dow=(fd+d-1)%7;
     var isSun=dow===6;
@@ -24,8 +24,10 @@ function calcWeekActuals(entries,consultants,year,month,startDay,endDay,customHo
     if(dow<5&&!isHol)workHalves+=2;
     if(!isSun&&!isHol){
       consultants.forEach(function(n){var cE=entries[n]||{};var e=cE[makeKey(year,month,d)];if(!e)return;
-        ["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client")tot+=0.5;});});}}
-  return{actual:tot,workDays:workHalves/2};}
+        ["am","pm"].forEach(function(h){var x=e[h];
+          if(x&&x.status==="client")tot+=0.5;
+          if(x&&x.status==="training")totTrain+=0.5;});});}}
+  return{actual:tot,workDays:workHalves/2,training:totTrain};}
 
 // monthlyPlanned: array di 12 elementi, una "previste" per ciascun mese
 // gia' filtrata sui contratti attivi in quel mese.
@@ -97,12 +99,13 @@ function generateWeeklyMail(data,year,wMo,weeks,monthlyPlanned,target,months,cM)
   lines.push("Target: "+fmtNum(prevWeek.target)+" gg");
   lines.push("Previste: "+fmtNum(prevWeek.planned)+" gg");
   lines.push("Effettive: "+fmtNum(prevWeek.actual)+" gg");
+  lines.push("Formazione API: "+fmtNum(prevWeek.training||0)+" gg");
   lines.push("Delta: "+(delta>=0?"+":"")+fmtNum(delta)+" gg");
   lines.push("");
   lines.push("=== DETTAGLIO SETTIMANE "+MESI[wMo].toUpperCase()+" "+year+" ===");
   lines.push("");
   weeks.forEach(function(w){var d=w.actual-w.target;
-    lines.push("Sett. "+w.isoW+"/"+yr2+" ("+w.start+"-"+w.end+") | GG lav: "+fmtNum(w.workDays)+" | Target: "+fmtNum(w.target)+" | Prev: "+fmtNum(w.planned)+" | Eff: "+fmtNum(w.actual)+" | Delta: "+(d>=0?"+":"")+fmtNum(d));});
+    lines.push("Sett. "+w.isoW+"/"+yr2+" ("+w.start+"-"+w.end+") | GG lav: "+fmtNum(w.workDays)+" | Target: "+fmtNum(w.target)+" | Prev: "+fmtNum(w.planned)+" | Eff: "+fmtNum(w.actual)+" | Form. API: "+fmtNum(w.training||0)+" | Delta: "+(d>=0?"+":"")+fmtNum(d));});
   lines.push("");
   lines.push("---");
   lines.push("OPEX Solutions - Report generato automaticamente");
@@ -132,7 +135,7 @@ export function Dashboard(p){
   var weeks=useMemo(function(){var wks=getWeeksOfMonth(year,wMo);var pWMo=monthlyPlanned[wMo]||0;return wks.map(function(w){var wa=calcWeekActuals(data.entries,data.consultants,year,wMo,w.start,w.end,customHolidays);
     var pR=wa.workDays>0?pWMo*(wa.workDays/20):0;var tR=wa.workDays>0?target*(wa.workDays/20):0;
     var iw=isoWeek(year,wMo,w.start);
-    return{num:w.num,start:w.start,end:w.end,actual:wa.actual,planned:pR,target:tR,workDays:wa.workDays,isoW:iw};});},[data,year,wMo,monthlyPlanned,target,customHolidays]);
+    return{num:w.num,start:w.start,end:w.end,actual:wa.actual,planned:pR,target:tR,workDays:wa.workDays,training:wa.training,isoW:iw};});},[data,year,wMo,monthlyPlanned,target,customHolidays]);
 
   var ytdData=useMemo(function(){if(selWeek===null)return null;var w=weeks[selWeek];if(!w)return null;
     return calcYTD(data.entries,data.consultants,year,wMo,w.end,monthlyPlanned,target,customHolidays);},[selWeek,data,year,wMo,weeks,monthlyPlanned,target,customHolidays]);
@@ -217,13 +220,14 @@ export function Dashboard(p){
           <div style={{fontSize:9,color:"#aaa"}}>{w.start}-{w.end}</div></div>);})}</div>
         <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Clicca su una settimana per la situazione YTD</p></div>
       <div style={{overflowX:"auto",marginBottom:16}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
-        <thead><tr style={{background:"#FFF8F8"}}><th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Settimana</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>GG lav.</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Target</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Previste</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Effettive</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Delta</th></tr></thead>
+        <thead><tr style={{background:"#FFF8F8"}}><th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Settimana</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>GG lav.</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Target</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Previste</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Effettive</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red,color:"#7B1FA2"}}>Form. API</th><th style={{padding:"8px",borderBottom:"2px solid "+CL.red}}>Delta</th></tr></thead>
         <tbody>{weeks.map(function(w,i){var delta=w.actual-w.target;var yr2=String(year).substring(2);return(<tr key={w.num} onClick={function(){sSelWeek(selWeek===i?null:i);}} style={{cursor:"pointer",background:selWeek===i?"#FFF8F0":"transparent"}}>
           <td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>Sett. {w.isoW}/{yr2} ({w.start}-{w.end} {MESI[wMo].substring(0,3)})</td>
           <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center"}}>{fmtNum(w.workDays)}</td>
           <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:CL.red,fontWeight:600}}>{fmtNum(w.target)}</td>
           <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:"#2E7D32",fontWeight:600}}>{fmtNum(w.planned)}</td>
           <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.greyDk}}>{fmtNum(w.actual)}</td>
+          <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:"#7B1FA2"}}>{w.training?fmtNum(w.training):"-"}</td>
           <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:delta>=0?"#2E7D32":CL.red}}>{(delta>=0?"+":"")+fmtNum(delta)}</td></tr>);})}</tbody></table></div>
       {ytdData&&<div style={{background:"#fff",borderRadius:12,padding:20,border:"1px solid #F0C040"}}>
         <h4 style={{margin:"0 0 12px",color:CL.greyDk,fontSize:14}}>YTD fino a Sett. {weeks[selWeek].isoW}/{String(year).substring(2)} ({weeks[selWeek].end} {MESI[wMo]})</h4>
