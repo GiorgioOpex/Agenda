@@ -15,6 +15,17 @@ import { Impostazioni } from "./Impostazioni";
 // Destinatario fisso del Report Consulente: l'amministrazione Opex Solutions.
 var REPORT_RECIPIENT="amministrazione@opexsolutions.it";
 
+// Helper granulari per salvataggio singola entry — sostituiscono saveAll(nd) per le entries.
+function apiUpsertEntry(payload){
+  return fetch('/api/entries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json();});
+}
+function apiDeleteEntry(payload){
+  return fetch('/api/entries',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json();});
+}
+function apiMoveEntry(payload){
+  return fetch('/api/entries/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json();});
+}
+
 export default function App(){
   var ds=useState(null),data=ds[0],sData=ds[1];var ls=useState(true),loading=ls[0],sLoad=ls[1];
   var gs=useState(false),logged=gs[0],sLog=gs[1];var ia=useState(false),isAdm=ia[0],sAdm=ia[1];
@@ -93,16 +104,27 @@ export default function App(){
   async function reloadDataAfterFirstLogin(){
     var fresh=await loadAll();sData(fresh);sFirstLogin(null);
   }
-  var hSD=useCallback(async function(dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};if(val)ent[user][dk]=val;else delete ent[user][dk];nd.entries=ent;sData(nd);sED(null);await saveAll(nd);},[data,user]);
+  var hSD=useCallback(async function(dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};if(val)ent[user][dk]=val;else delete ent[user][dk];nd.entries=ent;sData(nd);sED(null);
+    if(!val){await apiDeleteEntry({consultantName:user,dateKey:dk,half:"full"});}
+    else{var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=val[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:user,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||""});}else{await apiDeleteEntry({consultantName:user,dateKey:dk,half:h});}}}
+  },[data,user]);
   var hMV=useCallback(async function(fromDk,toDk,fromEntry,half){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};
     var src=ent[user][fromDk];if(!src)return;var dst=ent[user][toDk]||{};
     if(half==="full"){ent[user][toDk]=src;delete ent[user][fromDk];}
     else if(half==="am"){dst.am=src.am;ent[user][toDk]=dst;var newSrc=Object.assign({},src);delete newSrc.am;if(newSrc.pm&&newSrc.pm.status)ent[user][fromDk]=newSrc;else delete ent[user][fromDk];}
     else if(half==="pm"){dst.pm=src.pm;ent[user][toDk]=dst;var newSrc2=Object.assign({},src);delete newSrc2.pm;if(newSrc2.am&&newSrc2.am.status)ent[user][fromDk]=newSrc2;else delete ent[user][fromDk];}
-    nd.entries=ent;sData(nd);await saveAll(nd);},[data,user]);
-  var hSS=useCallback(async function(cl,ll,al,budgets,endDates,targetM,emails,customHols){var nd=Object.assign({},data,{consultants:cl,clients:ll,admins:al,clientBudgets:budgets,clientEndDates:endDates,targetMensile:targetM,consultantEmails:emails||{},customHolidays:customHols||[]});sData(nd);sSS(false);await saveAll(nd);},[data]);
-  var hSE=useCallback(async function(consultantName,dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[consultantName])ent[consultantName]={};if(val)ent[consultantName][dk]=val;else delete ent[consultantName][dk];nd.entries=ent;sData(nd);await saveAll(nd);},[data]);
-  var hCP=useCallback(async function(dk,entryData){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};ent[user][dk]=JSON.parse(JSON.stringify(entryData));nd.entries=ent;sData(nd);await saveAll(nd);},[data,user]);
+    nd.entries=ent;sData(nd);await apiMoveEntry({consultantName:user,fromDateKey:fromDk,toDateKey:toDk,half:half});},[data,user]);
+  var hSS=useCallback(async function(cl,ll,al,budgets,endDates,targetM,emails,customHols){var nd=Object.assign({},data,{consultants:cl,clients:ll,admins:al,clientBudgets:budgets,clientEndDates:endDates,targetMensile:targetM,consultantEmails:emails||{},customHolidays:customHols||[]});sData(nd);sSS(false);
+    // Payload senza entries: hSS gestisce solo impostazioni, non entries.
+    var p={consultants:cl,clients:ll,admins:al,clientBudgets:budgets,clientEndDates:endDates,targetMensile:targetM,consultantEmails:emails||{},customHolidays:customHols||[]};
+    await saveAll(p);},[data]);
+  var hSE=useCallback(async function(consultantName,dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[consultantName])ent[consultantName]={};if(val)ent[consultantName][dk]=val;else delete ent[consultantName][dk];nd.entries=ent;sData(nd);
+    if(!val){await apiDeleteEntry({consultantName:consultantName,dateKey:dk,half:"full"});}
+    else{var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=val[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:consultantName,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||""});}else{await apiDeleteEntry({consultantName:consultantName,dateKey:dk,half:h});}}}
+  },[data]);
+  var hCP=useCallback(async function(dk,entryData){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};ent[user][dk]=JSON.parse(JSON.stringify(entryData));nd.entries=ent;sData(nd);
+    var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=entryData[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:user,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||""});}else{await apiDeleteEntry({consultantName:user,dateKey:dk,half:h});}}
+  },[data,user]);
   // Cambio mese: chiude sempre l'eventuale Report aperto, in modo che il consulente
   // debba riaprirlo esplicitamente nel nuovo mese (e solo se mese corrente o passato).
   function pM(){sShowReport(false);if(mo===0){sMo(11);sYr(function(y){return y-1;});}else sMo(function(m){return m-1;});}
