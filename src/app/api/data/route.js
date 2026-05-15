@@ -46,12 +46,23 @@ async function readData() {
   const orgId = await getOrgId();
   if (!orgId) return null;
 
-  const { data: users } = await supabase.from('users').select('*').eq('org_id', orgId).eq('role', 'consultant');
-  const { data: admins } = await supabase.from('users').select('*').eq('org_id', orgId).eq('role', 'admin');
-  const { data: clients } = await supabase.from('clients').select('*').eq('org_id', orgId);
-  const { data: entries } = await supabase.from('entries').select('*, client:clients(name)').eq('org_id', orgId);
+  const { data: users } = await supabase.from('users').select('*').eq('org_id', orgId).eq('role', 'consultant').range(0, 99999);
+  const { data: admins } = await supabase.from('users').select('*').eq('org_id', orgId).eq('role', 'admin').range(0, 99999);
+  const { data: clients } = await supabase.from('clients').select('*').eq('org_id', orgId).range(0, 99999);
+  
+  var entries = [];
+  var pageSize = 1000;
+  var fromIdx = 0;
+  while (true) {
+    var pageRes = await supabase.from('entries').select('*, client:clients(name)').eq('org_id', orgId).range(fromIdx, fromIdx + pageSize - 1);
+    var pageData = pageRes.data || [];
+    entries = entries.concat(pageData);
+    if (pageData.length < pageSize) break;
+    fromIdx += pageSize;
+    if (fromIdx > 1000000) break; // safety stop a 1 milione
+  }
+  
   const { data: settings } = await supabase.from('settings').select('*').eq('org_id', orgId).single();
-
   var consultants = (users || []).map(function(u) { return u.name; });
   var consultantEmails = {};
   (users || []).forEach(function(u) { consultantEmails[u.name] = u.email; });
