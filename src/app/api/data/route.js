@@ -73,6 +73,8 @@ async function readData() {
     clientBudgets[c.name] = c.budget_monthly || 0;
     clientEndDates[c.name] = c.contract_end || "";
   });
+  var onCallConsultants = [];
+  (users || []).forEach(function(u) { if (u.is_on_call) onCallConsultants.push(u.name); });
   var adminList = (admins || []).map(function(a) { return { name: a.name, email: a.email, passHash: a.pass_hash || '', auth_id: a.auth_id }; });
 
   // Flag di sicurezza per il flusso "primo accesso"
@@ -112,6 +114,7 @@ async function readData() {
     admins: adminList,
     targetMensile: settings ? settings.target_monthly : 0,
     customHolidays: settings ? (settings.custom_holidays || []) : [],
+    onCallConsultants: onCallConsultants,
     userFlags: userFlags
   };
 }
@@ -150,6 +153,8 @@ async function writeData(body) {
     var newNames = body.consultants || [];
     var emails = body.consultantEmails || {};
     var passwords = body.consultantPasswords || {};
+    var onCallConsSet = {};
+    (body.onCallConsultants || []).forEach(function(n) { onCallConsSet[n] = true; });
 
     for (var i = 0; i < existingNames.length; i++) {
       if (newNames.indexOf(existingNames[i]) < 0) {
@@ -159,16 +164,17 @@ async function writeData(body) {
     for (var j = 0; j < newNames.length; j++) {
       var n = newNames[j];
       var em = emails[n] || '';
+      var isOnCall = onCallConsSet[n] ? true : false;
       if (existingNames.indexOf(n) < 0) {
         var authId = null;
         if (em) authId = await createOrUpdateAuthUser(em, passwords[n] || null);
         // Nuovo utente: must_change_password = TRUE per forzare il primo accesso
-        await supabase.from('users').insert({ org_id: orgId, name: n, email: em, role: 'consultant', auth_id: authId, must_change_password: true });
+        await supabase.from('users').insert({ org_id: orgId, name: n, email: em, role: 'consultant', auth_id: authId, must_change_password: true, is_on_call: isOnCall });
       } else {
-        if (em) {
-          await supabase.from('users').update({ email: em }).eq('org_id', orgId).eq('name', n).eq('role', 'consultant');
-          if (passwords[n]) await createOrUpdateAuthUser(em, passwords[n]);
-        }
+        var upd = { is_on_call: isOnCall };
+        if (em) upd.email = em;
+        await supabase.from('users').update(upd).eq('org_id', orgId).eq('name', n).eq('role', 'consultant');
+        if (em && passwords[n]) await createOrUpdateAuthUser(em, passwords[n]);
       }
     }
   }
