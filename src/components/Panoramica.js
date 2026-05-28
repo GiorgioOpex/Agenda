@@ -5,20 +5,24 @@ import { CL, FONT, makeKey, daysInMonth, firstDow, fmtNum, getHalfBg, getClientC
 var BUSY_COMM_BG="#000";
 
 export function Panoramica(p){
-  var entries=p.entries,cons=p.consultants,clients=p.clients||[],cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month,customHolidays=p.customHolidays||[];
+  var entries=p.entries,cons=p.consultants,clients=p.clients||[],cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month,customHolidays=p.customHolidays||[],onCallConsultants=p.onCallConsultants||[];
   var days=daysInMonth(year,month),fd=firstDow(year,month);
   var fs=useState(null),filter=fs[0],sFilter=fs[1];
+  var onCallSet={};onCallConsultants.forEach(function(n){onCallSet[n]=true;});
 
   var allUsed={},hasBusy=false,hasComm=false,hasTrain=false,totCliAll=0,totBusyAll=0,totCommAll=0,totTrainAll=0;
+  // Totali per soli consulenti Opex (usati per "Disponibili")
+  var totCliOpex=0,totBusyOpex=0,totCommOpex=0,totTrainOpex=0,opexCount=0;
   var totCliPerCons={};
-  cons.forEach(function(name){var cE=entries[name]||{};var tCli=0;
+  cons.forEach(function(name){var cE=entries[name]||{};var tCli=0,tBusy=0,tComm=0,tTrain=0;
     for(var d=1;d<=days;d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
       ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
         if(x.status==="client"&&x.client){allUsed[x.client]=true;totCliAll+=.5;tCli+=.5;}
-        if(x.status==="busy"){hasBusy=true;totBusyAll+=.5;}
-        if(x.status==="commercial"){hasComm=true;totCommAll+=.5;}
-        if(x.status==="training"){hasTrain=true;totTrainAll+=.5;}});}
-    totCliPerCons[name]=tCli;});
+        if(x.status==="busy"){hasBusy=true;totBusyAll+=.5;tBusy+=.5;}
+        if(x.status==="commercial"){hasComm=true;totCommAll+=.5;tComm+=.5;}
+        if(x.status==="training"){hasTrain=true;totTrainAll+=.5;tTrain+=.5;}});}
+    totCliPerCons[name]=tCli;
+    if(!onCallSet[name]){opexCount++;totCliOpex+=tCli;totBusyOpex+=tBusy;totCommOpex+=tComm;totTrainOpex+=tTrain;}});
   var usedList=Object.keys(allUsed);
 
   var consSorted=cons.slice().sort(function(a,b){
@@ -32,7 +36,7 @@ export function Panoramica(p){
   for(var d=1;d<=days;d++){if((fd+d-1)%7<5&&!isHoliday(year,month,d,customHolidays))workDays++;}
 
   var totPreviste=calcMonthlyPlanned(clients,cBud,cEnd,year,month);
-  var totDisponibili=workDays*cons.length-totCliAll-totBusyAll-totCommAll-totTrainAll;
+  var totDisponibili=workDays*opexCount-totCliOpex-totBusyOpex-totCommOpex-totTrainOpex;
 
   function matchFilter(half){
     if(!filter)return true;
@@ -94,7 +98,7 @@ export function Panoramica(p){
       <th style={{padding:"7px 5px",borderBottom:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:"#7B1FA2",fontSize:11}}>Form.</th>
       <th style={{padding:"7px 5px",borderBottom:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:"#2E7D32",fontSize:11}}>Libere</th>
     </tr></thead>
-    <tbody>{consSorted.map(function(name){var cE=entries[name]||{},totCli=0,totBusy=0,totComm=0,totTrain=0;
+    <tbody>{consSorted.map(function(name){var cE=entries[name]||{},totCli=0,totBusy=0,totComm=0,totTrain=0;var isOC=onCallSet[name];
       var tds=Array.from({length:days},function(_,i){var key=makeKey(year,month,i+1),e=cE[key],isSun=(fd+i)%7===6,isSat=(fd+i)%7===5;
         var isHol=isHoliday(year,month,i+1,customHolidays);
         var amHalf=e&&e.am?e.am:null;
@@ -112,11 +116,11 @@ export function Panoramica(p){
         return<td key={i+1} style={{padding:1,borderBottom:"1px solid #eee",textAlign:"center"}}><div style={{width:18,height:18,borderRadius:3,margin:"0 auto",overflow:"hidden",display:"flex",flexDirection:"column",background:isSun&&amBg==="transparent"&&pmBg==="transparent"?"#f0f0f0":isSat&&amBg==="transparent"&&pmBg==="transparent"?"#f7f5f0":"transparent"}}><div style={Object.assign({flex:1,background:amBg},halfTextStyle)}>{amLetter}</div><div style={Object.assign({flex:1,background:pmBg},halfTextStyle)}>{pmLetter}</div></div></td>;});
       var libere=workDays-totCli-totBusy-totComm-totTrain;
       return<tr key={name}>
-        <td style={{position:"sticky",left:0,background:"#fff",padding:"4px 10px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,fontSize:11,zIndex:1}}>{name}</td>
+        <td style={{position:"sticky",left:0,background:"#fff",padding:"4px 10px",borderBottom:"1px solid #eee",fontWeight:600,color:isOC?"#1565C0":CL.greyDk,fontSize:11,zIndex:1}}>{name}{isOC&&<span style={{marginLeft:4,fontSize:8,fontWeight:400,color:"#1565C0",background:"#E3F2FD",borderRadius:3,padding:"1px 4px",verticalAlign:"middle"}}>ch.</span>}</td>
         {tds}
         <td style={{padding:"4px 5px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.red,fontSize:12}}>{fmtNum(totCli)}</td>
         <td style={{padding:"4px 5px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:"#FF8F00",fontSize:12}}>{totComm?fmtNum(totComm):"-"}</td>
         <td style={{padding:"4px 5px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:"#7B1FA2",fontSize:12}}>{totTrain?fmtNum(totTrain):"-"}</td>
-        <td style={{padding:"4px 5px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:"#2E7D32",fontSize:12}}>{fmtNum(libere)}</td>
+        <td style={{padding:"4px 5px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:"#2E7D32",fontSize:12}}>{isOC?"-":fmtNum(libere)}</td>
       </tr>;})}</tbody></table></div></div>);
 }

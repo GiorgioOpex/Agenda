@@ -7,6 +7,7 @@ export function Impostazioni(p){
   var c1=useState([].concat(data.consultants)),cl=c1[0],sCl=c1[1];var l1=useState([].concat(data.clients)),ll=l1[0],sLl=l1[1];
   var a1=useState([].concat(data.admins)),al=a1[0],sAl=a1[1];var b1=useState(Object.assign({},data.clientBudgets||{})),bud=b1[0],sBud=b1[1];
   var ed1=useState(Object.assign({},data.clientEndDates||{})),endD=ed1[0],sEndD=ed1[1];
+  var oc1=useState([].concat(data.onCallConsultants||[])),onCallCons=oc1[0],sOnCallCons=oc1[1];
   var ce1=useState(Object.assign({},data.consultantEmails||{})),cEmails=ce1[0],sCEmails=ce1[1];
   var t1=useState(data.targetMensile||0),tM=t1[0],sTM=t1[1];
   var ch1=useState([].concat(data.customHolidays||[])),cHols=ch1[0],sCHols=ch1[1];
@@ -29,6 +30,10 @@ export function Impostazioni(p){
 
   function addA(){if(!na.trim()){sAm("Inserisci un nome");return;}if(np.length<4){sAm("Min 4 caratteri");return;}if(np!==np2){sAm("Non coincidono");return;}if(al.find(function(a){return a.name.toLowerCase()===na.trim().toLowerCase();})){sAm("Gia esistente");return;}
     sAl([].concat(al,[{name:na.trim().toUpperCase(),passHash:hashPw(np)}]));sNa("");sNp("");sN2("");sAm("Aggiunto!");setTimeout(function(){sAm("");},2000);}
+  function isConsOnCall(n){return onCallCons.indexOf(n)>=0;}
+  function toggleConsOnCall(n){
+    if(isConsOnCall(n)){sOnCallCons(onCallCons.filter(function(x){return x!==n;}));}
+    else{sOnCallCons([].concat(onCallCons,[n]));}}
   function validateClients(){
     for(var i=0;i<ll.length;i++){var c=ll[i];
       if(!bud[c]||bud[c]<=0)return "Il cliente \""+c+"\" non ha le giornate previste/mese";
@@ -42,7 +47,7 @@ export function Impostazioni(p){
   async function doSave(){
     var err=validateClients();if(!err)err=validateConsultants();
     if(err){sSaveErr(err);return;}
-    sSaveErr("");sSv(true);await onSave(cl,ll,al,bud,endD,tM,cEmails,cHols);sSv(false);}
+    sSaveErr("");sSv(true);await onSave(cl,ll,al,bud,endD,tM,cEmails,cHols,onCallCons);sSv(false);}
   function missingBud(c){return !bud[c]||bud[c]<=0;}
   function missingEnd(c){return !endD[c];}
 
@@ -127,11 +132,12 @@ export function Impostazioni(p){
           <button onClick={function(){onPSort("name");}} style={Object.assign({},sortBtn,{borderColor:pSortKey==="name"?CL.red:"#ddd"})}>Nome{pArrow("name")}</button>
           <button onClick={function(){onPSort("email");}} style={Object.assign({},sortBtn,{borderColor:pSortKey==="email"?CL.red:"#ddd"})}>Email{pArrow("email")}</button>
         </div>
-        {getSortedConsultants().map(function(c){return<div key={c} style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
-          <span style={{flex:"1 1 140px",padding:"6px 10px",background:CL.greyLt,borderRadius:6,fontSize:14}}>{c}</span>
+        {getSortedConsultants().map(function(c){var oc=isConsOnCall(c);return<div key={c} style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+          <span style={{flex:"1 1 140px",padding:"6px 10px",background:oc?"#E3F2FD":CL.greyLt,borderRadius:6,fontSize:14,color:oc?"#1565C0":CL.greyDk,fontWeight:oc?600:400}}>{c}</span>
+          <button onClick={function(){toggleConsOnCall(c);sSaveErr("");}} title={oc?"Imposta come consulente Opex":"Imposta come consulente a chiamata"} style={{padding:"4px 8px",borderRadius:6,border:"1px solid "+(oc?"#1565C0":"#ddd"),background:oc?"#E3F2FD":"#fff",color:oc?"#1565C0":CL.greyMd,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:FONT,whiteSpace:"nowrap"}}>{oc?"A chiamata":"Opex"}</button>
           <input value={cEmails[c]||""} onChange={function(e){var ne=Object.assign({},cEmails);ne[c]=e.target.value;sCEmails(ne);sSaveErr("");}} placeholder="email@..." style={Object.assign({},sI,{flex:"1 1 180px",padding:"6px 10px",fontSize:12,border:(!cEmails[c]||!cEmails[c].trim())?"2px solid #e53935":"1px solid #ddd"})}/>
           <button onClick={function(){resetPwd(c);}} disabled={resetting===c||!cEmails[c]} title={!cEmails[c]?"Email mancante":"Reset password"} style={Object.assign({},sReset,{opacity:(resetting===c||!cEmails[c])?0.5:1})}>{resetting===c?"...":"🔑 Reset"}</button>
-          <button onClick={function(){sCl(cl.filter(function(x){return x!==c;}));var ne=Object.assign({},cEmails);delete ne[c];sCEmails(ne);}} style={{background:"none",border:"none",color:CL.red,cursor:"pointer",fontSize:18}}>x</button></div>;})}
+          <button onClick={function(){sCl(cl.filter(function(x){return x!==c;}));var ne=Object.assign({},cEmails);delete ne[c];sCEmails(ne);sOnCallCons(onCallCons.filter(function(x){return x!==c;}));}} style={{background:"none",border:"none",color:CL.red,cursor:"pointer",fontSize:18}}>x</button></div>;})}
         <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}>
           <input value={nc} onChange={function(e){sNc(e.target.value);}} placeholder="Nome consulente..." style={Object.assign({},sI,{flex:"1 1 140px"})}/>
           <input value={nce} onChange={function(e){sNce(e.target.value);}} placeholder="email@..." style={Object.assign({},sI,{flex:"1 1 180px",fontSize:12})}/>

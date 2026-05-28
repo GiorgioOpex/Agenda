@@ -10,7 +10,8 @@ function formatDateExt(year,month,day){
 }
 
 export function VistaCliente(p){
-  var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month;
+  var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month,onCallConsultants=p.onCallConsultants||[];
+  var onCallSet={};onCallConsultants.forEach(function(n){onCallSet[n]=true;});
   var ss=useState(""),sel=ss[0],setSel=ss[1];
   // Stato di ordinamento della tabella riepilogo: chiave colonna + direzione (asc/desc).
   var sk=useState("name"),sortKey=sk[0],sSortKey=sk[1];
@@ -128,10 +129,10 @@ export function VistaCliente(p){
             <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Data</th>
             <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Presenza</th>
             <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Consulente</th></tr></thead>
-          <tbody>{dayRows.map(function(r,i){return<tr key={i}>
+          <tbody>{dayRows.map(function(r,i){var isOC=onCallSet[r.name];return<tr key={i}>
             <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk}}>{formatDateExt(year,month,r.day)}</td>
             <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",color:CL.greyMd}}>{r.presenza}</td>
-            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.red}}>{r.name}</td></tr>;})}</tbody>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:isOC?"#1565C0":CL.red}}>{r.name}{isOC&&<span style={{marginLeft:5,fontSize:10,fontWeight:400,color:"#1565C0",background:"#E3F2FD",borderRadius:3,padding:"1px 4px"}}>ch.</span>}</td></tr>;})}</tbody>
         </table></div></div>);}()}
     <p style={{fontSize:11,color:"#aaa",marginTop:16}}>Valori in giornate (0.5 = mezza giornata)</p></div>);
 }
