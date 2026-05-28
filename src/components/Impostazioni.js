@@ -118,7 +118,7 @@ export function Impostazioni(p){
   var sortBtn={padding:"4px 10px",borderRadius:6,border:"1px solid #ddd",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:FONT,color:CL.greyDk,fontWeight:600};
 
   return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
-    <div onClick={function(e){e.stopPropagation();}} style={{background:"#fff",borderRadius:16,padding:28,width:560,maxWidth:"94vw",maxHeight:"88vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.2)",fontFamily:FONT}}>
+    <div onClick={function(e){e.stopPropagation();}} style={{background:"#fff",borderRadius:16,padding:28,width:780,maxWidth:"96vw",maxHeight:"88vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.2)",fontFamily:FONT}}>
       <h3 style={{margin:"0 0 16px",fontSize:20,color:CL.greyDk}}>Gestione</h3>
       <div style={{display:"flex",gap:4,marginBottom:20,flexWrap:"wrap"}}>{[["people","Consulenti"],["clients","Clienti e Budget"],["target","Target"],["holidays","Festivita'"],["admins","Admin"]].map(function(t){return<button key={t[0]} onClick={function(){sTab(t[0]);sSaveErr("");sResetMsg("");}} style={{padding:"8px 14px",borderRadius:8,border:"none",fontSize:12,fontWeight:tab===t[0]?700:400,cursor:"pointer",fontFamily:FONT,background:tab===t[0]?CL.red:"#f0f0f0",color:tab===t[0]?"#fff":CL.greyMd}}>{t[1]}</button>;})}</div>
 
@@ -132,10 +132,10 @@ export function Impostazioni(p){
           <button onClick={function(){onPSort("name");}} style={Object.assign({},sortBtn,{borderColor:pSortKey==="name"?CL.red:"#ddd"})}>Nome{pArrow("name")}</button>
           <button onClick={function(){onPSort("email");}} style={Object.assign({},sortBtn,{borderColor:pSortKey==="email"?CL.red:"#ddd"})}>Email{pArrow("email")}</button>
         </div>
-        {getSortedConsultants().map(function(c){var oc=isConsOnCall(c);return<div key={c} style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
-          <span style={{flex:"1 1 140px",padding:"6px 10px",background:oc?"#E3F2FD":CL.greyLt,borderRadius:6,fontSize:14,color:oc?"#1565C0":CL.greyDk,fontWeight:oc?600:400}}>{c}</span>
+        {getSortedConsultants().map(function(c){var oc=isConsOnCall(c);return<div key={c} style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+          <span style={{flex:"1 1 0",minWidth:0,padding:"6px 10px",background:oc?"#E3F2FD":CL.greyLt,borderRadius:6,fontSize:14,color:oc?"#1565C0":CL.greyDk,fontWeight:oc?600:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c}</span>
           <button onClick={function(){toggleConsOnCall(c);sSaveErr("");}} title={oc?"Imposta come consulente Opex":"Imposta come consulente a chiamata"} style={{padding:"4px 8px",borderRadius:6,border:"1px solid "+(oc?"#1565C0":"#ddd"),background:oc?"#E3F2FD":"#fff",color:oc?"#1565C0":CL.greyMd,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:FONT,whiteSpace:"nowrap"}}>{oc?"A chiamata":"Opex"}</button>
-          <input value={cEmails[c]||""} onChange={function(e){var ne=Object.assign({},cEmails);ne[c]=e.target.value;sCEmails(ne);sSaveErr("");}} placeholder="email@..." style={Object.assign({},sI,{flex:"1 1 180px",padding:"6px 10px",fontSize:12,border:(!cEmails[c]||!cEmails[c].trim())?"2px solid #e53935":"1px solid #ddd"})}/>
+          <input value={cEmails[c]||""} onChange={function(e){var ne=Object.assign({},cEmails);ne[c]=e.target.value;sCEmails(ne);sSaveErr("");}} placeholder="email@..." style={Object.assign({},sI,{flex:"2 1 0",minWidth:0,padding:"6px 10px",fontSize:12,border:(!cEmails[c]||!cEmails[c].trim())?"2px solid #e53935":"1px solid #ddd"})}/>
           <button onClick={function(){resetPwd(c);}} disabled={resetting===c||!cEmails[c]} title={!cEmails[c]?"Email mancante":"Reset password"} style={Object.assign({},sReset,{opacity:(resetting===c||!cEmails[c])?0.5:1})}>{resetting===c?"...":"🔑 Reset"}</button>
           <button onClick={function(){sCl(cl.filter(function(x){return x!==c;}));var ne=Object.assign({},cEmails);delete ne[c];sCEmails(ne);sOnCallCons(onCallCons.filter(function(x){return x!==c;}));}} style={{background:"none",border:"none",color:CL.red,cursor:"pointer",fontSize:18}}>x</button></div>;})}
         <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}>
