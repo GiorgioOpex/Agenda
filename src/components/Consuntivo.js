@@ -226,13 +226,29 @@ function ConsDetail(p){
     </div>);
 }
 
+function getWeeksInMonth(year,month){
+  var fd=firstDow(year,month),days=daysInMonth(year,month),weeks=[],d=1;
+  while(d<=days){var dow=(fd+d-1)%7;var start=d;var end=Math.min(d+(6-dow),days);weeks.push({start:start,end:end});d=end+1;}
+  return weeks;}
+
 export function Consuntivo(p){
   var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},clientEndDates=p.clientEndDates||{},year=p.year,month=p.month,onSaveEntry=p.onSaveEntry,customHolidays=p.customHolidays||[];
   var cs=useState(null),selCons=cs[0],sSelCons=cs[1];
   var ms=useState(null),selMode=ms[0],sSelMode=ms[1];
+  var vm=useState("mensile"),viewMode=vm[0],sViewMode=vm[1];
+  var sw=useState(0),selWeek=sw[0],sSelWeek=sw[1];
   var report=useMemo(function(){var d={};cons.forEach(function(n){d[n]={tc:0,tb:0,tcom:0,ttrain:0,bc:{}};clients.forEach(function(c){d[n].bc[c]=0;});
     var cE=entries[n]||{};for(var i=1;i<=daysInMonth(year,month);i++){var e=cE[makeKey(year,month,i)];if(!e)continue;
       ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;if(x.status==="client"){d[n].tc+=.5;if(x.client)d[n].bc[x.client]=(d[n].bc[x.client]||0)+.5;}else if(x.status==="busy")d[n].tb+=.5;else if(x.status==="commercial")d[n].tcom+=.5;else if(x.status==="training")d[n].ttrain+=.5;});}});return d;},[entries,cons,clients,year,month]);
+
+  var weekReport=useMemo(function(){var allWeeks=getWeeksInMonth(year,month);if(!allWeeks.length)return{};
+    var wi=Math.min(selWeek,allWeeks.length-1);var w=allWeeks[wi];var d={};
+    cons.forEach(function(n){d[n]={tc:0,tb:0,tcom:0,ttrain:0,bc:{}};clients.forEach(function(c){d[n].bc[c]=0;});
+      var cE=entries[n]||{};for(var i=w.start;i<=w.end;i++){var e=cE[makeKey(year,month,i)];if(!e)continue;
+        ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
+          if(x.status==="client"){d[n].tc+=.5;if(x.client)d[n].bc[x.client]=(d[n].bc[x.client]||0)+.5;}
+          else if(x.status==="busy")d[n].tb+=.5;else if(x.status==="commercial")d[n].tcom+=.5;else if(x.status==="training")d[n].ttrain+=.5;});}});
+    return d;},[entries,cons,clients,year,month,selWeek]);
 
   var mc=useState(null),menuCons=mc[0],sMenuCons=mc[1];
   var mr=useState(null),menuRect=mr[0],sMenuRect=mr[1];
@@ -240,7 +256,18 @@ export function Consuntivo(p){
   if(selCons&&selMode==="agenda")return<MiniCalendar name={selCons} entries={entries} clients={clients} clientEndDates={clientEndDates} customHolidays={customHolidays} year={year} month={month} onSave={onSaveEntry} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
   if(selCons&&selMode==="detail")return<ConsDetail name={selCons} entries={entries} clients={clients} year={year} month={month} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
 
+  var weeks=getWeeksInMonth(year,month);
+  var safeWeek=Math.min(selWeek,weeks.length-1);
+  var curReport=viewMode==="settimanale"?weekReport:report;
+  var mon3=MESI[month].substring(0,3);
+
   return(<div>
+    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14,alignItems:"center"}}>
+      <button onClick={function(){sViewMode("mensile");}} style={{padding:"5px 14px",borderRadius:6,border:"1px solid "+(viewMode==="mensile"?CL.red:"#ddd"),background:viewMode==="mensile"?CL.red:"#fff",color:viewMode==="mensile"?"#fff":CL.greyDk,fontSize:13,cursor:"pointer",fontFamily:FONT,fontWeight:600}}>Mensile</button>
+      <button onClick={function(){sViewMode("settimanale");}} style={{padding:"5px 14px",borderRadius:6,border:"1px solid "+(viewMode==="settimanale"?CL.red:"#ddd"),background:viewMode==="settimanale"?CL.red:"#fff",color:viewMode==="settimanale"?"#fff":CL.greyDk,fontSize:13,cursor:"pointer",fontFamily:FONT,fontWeight:600}}>Settimanale</button>
+      {viewMode==="settimanale"&&<span style={{color:"#ddd",margin:"0 2px"}}>|</span>}
+      {viewMode==="settimanale"&&weeks.map(function(w,i){var isAct=i===safeWeek;return<button key={i} onClick={function(){sSelWeek(i);}} style={{padding:"4px 10px",borderRadius:6,border:"1px solid "+(isAct?CL.red:"#ddd"),background:isAct?"#FFF3F3":"#fff",color:isAct?CL.red:CL.greyMd,fontSize:12,cursor:"pointer",fontFamily:FONT,fontWeight:isAct?600:400}}>Sett.&nbsp;{i+1}&nbsp;({w.start}&ndash;{w.end}&nbsp;{mon3})</button>;})}
+    </div>
     <div style={{overflowX:"auto"}}>
       <table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}><thead><tr style={{background:"#FFF8F8"}}>
         <th style={{padding:"10px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Consulente</th><th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red}}>GG Cli.</th>
@@ -248,10 +275,10 @@ export function Consuntivo(p){
         <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red}}>Altro</th>
         <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,color:"#FF8F00"}}>Comm.</th>
         <th style={{padding:"10px 8px",borderBottom:"2px solid "+CL.red,color:"#7B1FA2"}}>Form.</th></tr></thead>
-      <tbody>{cons.map(function(n){var r=report[n];return(<tr key={n}>
+      <tbody>{cons.map(function(n){var r=curReport[n]||{tc:0,tb:0,tcom:0,ttrain:0,bc:{}};return(<tr key={n}>
         <td onClick={function(e){var rect=e.currentTarget.getBoundingClientRect();sMenuCons(n);sMenuRect({x:rect.left,y:rect.bottom+4});}} style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.red,textAlign:"left",cursor:"pointer"}}>{n}</td>
         <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.greyDk,fontSize:16}}>{fmtNum(r.tc)}</td>
-        {clients.map(function(c){return<td key={c} style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:r.bc[c]?CL.red:"#ccc"}}>{r.bc[c]?fmtNum(r.bc[c]):"-"}</td>;})}
+        {clients.map(function(c){return<td key={c} style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:(r.bc&&r.bc[c])?CL.red:"#ccc"}}>{(r.bc&&r.bc[c])?fmtNum(r.bc[c]):"-"}</td>;})}
         <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:CL.grey,fontWeight:600}}>{fmtNum(r.tb)}</td>
         <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:"#FF8F00",fontWeight:600}}>{r.tcom?fmtNum(r.tcom):"-"}</td>
         <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:"#7B1FA2",fontWeight:600}}>{r.ttrain?fmtNum(r.ttrain):"-"}</td></tr>);})}</tbody></table>
