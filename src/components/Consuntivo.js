@@ -155,8 +155,15 @@ function ClientDetail(p){
 function ConsDetail(p){
   var name=p.name,entries=p.entries,clients=p.clients,year=p.year,month=p.month,onBack=p.onBack;
   var cE=entries[name]||{};
+  var vm=useState("mensile"),viewMode=vm[0],sViewMode=vm[1];
+  var sw=useState(0),selWeek=sw[0],sSelWeek=sw[1];
+  var weeks=getWeeksInMonth(year,month);
+  var safeWeek=Math.min(selWeek,weeks.length-1);
+  var dayStart=viewMode==="settimanale"&&weeks.length>0?weeks[safeWeek].start:1;
+  var dayEnd=viewMode==="settimanale"&&weeks.length>0?weeks[safeWeek].end:daysInMonth(year,month);
+  var mon3=MESI[month].substring(0,3);
   var detail=useMemo(function(){var byClient={};var commDays=[];var busyDays=[];var trainDays=[];
-    for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
+    for(var d=dayStart;d<=dayEnd;d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
       ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
         if(x.status==="client"&&x.client){if(!byClient[x.client])byClient[x.client]=[];byClient[x.client].push({day:d,half:h});}
         if(x.status==="commercial")commDays.push({day:d,half:h});
@@ -183,10 +190,17 @@ function ConsDetail(p){
       var bGiorni=[];Object.keys(bGrouped).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(d){var hh=bGrouped[d];
         if(hh.length===2)bGiorni.push(d+" (intera)");else if(hh[0]==="am")bGiorni.push(d+" (mattina)");else bGiorni.push(d+" (pomeriggio)");});
       rows.push({type:"busy",label:"ALTRO IMPEGNO",gg:busyDays.length*0.5,giorni:bGiorni});}
-    return rows;},[cE,year,month]);
+    return rows;},[cE,year,month,dayStart,dayEnd]);
   var totCli=detail.reduce(function(s,r){return r.type==="client"?s+r.gg:s;},0);
+  var periodLabel=viewMode==="settimanale"&&weeks.length>0?"Sett. "+(safeWeek+1)+" ("+weeks[safeWeek].start+"-"+weeks[safeWeek].end+" "+mon3+") "+year:MESI[month]+" "+year;
   return(<div>
-    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}><button onClick={onBack} style={Object.assign({},sO,{padding:"6px 12px",fontSize:12})}>&#8249; Indietro</button><span style={{fontSize:16,fontWeight:700,color:CL.red}}>{name}</span><span style={{fontSize:12,color:CL.greyMd}}>Consuntivo {MESI[month]} {year}</span></div>
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}><button onClick={onBack} style={Object.assign({},sO,{padding:"6px 12px",fontSize:12})}>&#8249; Indietro</button><span style={{fontSize:16,fontWeight:700,color:CL.red}}>{name}</span><span style={{fontSize:12,color:CL.greyMd}}>Consuntivo {periodLabel}</span></div>
+    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14,alignItems:"center"}}>
+      <button onClick={function(){sViewMode("mensile");}} style={{padding:"5px 14px",borderRadius:6,border:"1px solid "+(viewMode==="mensile"?CL.red:"#ddd"),background:viewMode==="mensile"?CL.red:"#fff",color:viewMode==="mensile"?"#fff":CL.greyDk,fontSize:13,cursor:"pointer",fontFamily:FONT,fontWeight:600}}>Mensile</button>
+      <button onClick={function(){sViewMode("settimanale");}} style={{padding:"5px 14px",borderRadius:6,border:"1px solid "+(viewMode==="settimanale"?CL.red:"#ddd"),background:viewMode==="settimanale"?CL.red:"#fff",color:viewMode==="settimanale"?"#fff":CL.greyDk,fontSize:13,cursor:"pointer",fontFamily:FONT,fontWeight:600}}>Settimanale</button>
+      {viewMode==="settimanale"&&<span style={{color:"#ddd",margin:"0 2px"}}>|</span>}
+      {viewMode==="settimanale"&&weeks.map(function(w,i){var isAct=i===safeWeek;return<button key={i} onClick={function(){sSelWeek(i);}} style={{padding:"4px 10px",borderRadius:6,border:"1px solid "+(isAct?CL.red:"#ddd"),background:isAct?"#FFF3F3":"#fff",color:isAct?CL.red:CL.greyMd,fontSize:12,cursor:"pointer",fontFamily:FONT,fontWeight:isAct?600:400}}>Sett.&nbsp;{i+1}&nbsp;({w.start}&ndash;{w.end}&nbsp;{mon3})</button>;})}
+    </div>
     <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
       <thead><tr style={{background:"#FFF8F8"}}>
         <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Attivita</th>
@@ -202,7 +216,7 @@ function ConsDetail(p){
         <td style={{borderTop:"2px solid "+CL.red}}/></tr>
     </tbody></table></div>
     {function(){var allDays=[];
-      for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
+      for(var d=dayStart;d<=dayEnd;d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
         ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
           var lbl=x.status==="client"&&x.client?x.client:x.status==="commercial"?"COMMERCIALE OPEX":x.status==="training"?"FORMAZIONE":x.status==="busy"?"ALTRO IMPEGNO":"";
           var clr=x.status==="client"?CL.red:x.status==="commercial"?"#FF8F00":x.status==="training"?"#7B1FA2":CL.grey;
@@ -219,7 +233,7 @@ function ConsDetail(p){
             <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Attivita</th>
             <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Presenza</th></tr></thead>
           <tbody>{rows.map(function(r,i){return<tr key={i}>
-            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk}}>{r.day} {MESI[month].substring(0,3)}</td>
+            <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk}}>{r.day} {mon3}</td>
             <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:r.color}}>{r.label}</td>
             <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",color:CL.greyMd}}>{r.presenza}</td></tr>;})}</tbody>
         </table></div></div>);}()}
