@@ -100,7 +100,8 @@ async function readData() {
     entryMap[userName][dateStr][e.half] = {
       status: e.status,
       client: e.client ? e.client.name : "",
-      note: e.note || ""
+      note: e.note || "",
+      validated: e.validated === true
     };
   });
 
