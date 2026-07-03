@@ -10,13 +10,12 @@ function formatDateExt(year,month,day){
 }
 
 export function VistaCliente(p){
-  var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month,onCallConsultants=p.onCallConsultants||[];
+  var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month,onCallConsultants=p.onCallConsultants||[],onValidate=p.onValidate||function(){};
   var onCallSet={};onCallConsultants.forEach(function(n){onCallSet[n]=true;});
   var ss=useState(""),sel=ss[0],setSel=ss[1];
   // Stato di ordinamento della tabella riepilogo: chiave colonna + direzione (asc/desc).
   var sk=useState("name"),sortKey=sk[0],sSortKey=sk[1];
   var sd=useState("asc"),sortDir=sd[0],sSortDir=sd[1];
-  var vs=useState({}),validated=vs[0],sValidated=vs[1];
   var dsk=useState("day"),detSortKey=dsk[0],sDetSortKey=dsk[1];
   var dsd=useState("asc"),detSortDir=dsd[0],sDetSortDir=dsd[1];
   function onDetSort(key){if(detSortKey===key){sDetSortDir(detSortDir==="asc"?"desc":"asc");}else{sDetSortKey(key);sDetSortDir("asc");}}
@@ -128,13 +127,13 @@ export function VistaCliente(p){
       cons.forEach(function(n){var cE=entries[n]||{};
         for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
           var halves=[];["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client"&&x.client===sel)halves.push(h);});
-          if(halves.length>0)dayRows.push({day:d,name:n,presenza:halves.length===2?"Intera giornata":halves[0]==="am"?"Mattina":"Pomeriggio"});}});
+          if(halves.length>0)dayRows.push({day:d,name:n,halves:halves,presenza:halves.length===2?"Intera giornata":halves[0]==="am"?"Mattina":"Pomeriggio"});}});
       dayRows.sort(function(a,b){
         var diff=detSortKey==="consulente"?a.name.localeCompare(b.name,'it'):a.day-b.day;
         if(diff===0)diff=detSortKey==="consulente"?a.day-b.day:a.name.localeCompare(b.name,'it');
         return detSortDir==="asc"?diff:-diff;});
       if(dayRows.length===0)return null;
-      var valCount=dayRows.filter(function(r){return!!validated[sel+"_"+r.name+"_"+r.day];}).length;
+      var valCount=dayRows.filter(function(r){var cEv=entries[r.name]||{};var ev=cEv[makeKey(year,month,r.day)];return ev?r.halves.every(function(h){return ev[h]&&ev[h].validated===true;}):false;}).length;
       var thDet={padding:"8px 14px",borderBottom:"2px solid "+CL.red,cursor:"pointer",userSelect:"none",textAlign:"left",whiteSpace:"nowrap"};
       return(<div style={{marginTop:20}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10,flexWrap:"wrap"}}>
@@ -148,10 +147,10 @@ export function VistaCliente(p){
             <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Presenza</th>
             <th onClick={function(){onDetSort("consulente");}} style={thDet}>Consulente{detArrow("consulente")}</th>
           </tr></thead>
-          <tbody>{dayRows.map(function(r,i){var isOC=onCallSet[r.name];var vk=sel+"_"+r.name+"_"+r.day;var isVal=!!validated[vk];
+          <tbody>{dayRows.map(function(r,i){var isOC=onCallSet[r.name];var cEr=entries[r.name]||{};var eRow=cEr[makeKey(year,month,r.day)];var isVal=eRow?r.halves.every(function(h){return eRow[h]&&eRow[h].validated===true;}):false;
             return<tr key={i} style={{background:isVal?"#F1F8E9":"transparent"}}>
               <td style={{padding:"6px 8px",borderBottom:"1px solid #eee",textAlign:"center"}}>
-                <input type="checkbox" checked={isVal} onChange={function(e){var nv=Object.assign({},validated);if(e.target.checked)nv[vk]=true;else delete nv[vk];sValidated(nv);}} style={{cursor:"pointer",width:15,height:15,accentColor:"#2E7D32"}}/>
+                <input type="checkbox" checked={isVal} onChange={function(ev){var halfArg=r.halves.length===2?"full":r.halves[0];onValidate(r.name,makeKey(year,month,r.day),halfArg,ev.target.checked);}} style={{cursor:"pointer",width:15,height:15,accentColor:"#2E7D32"}}/>
               </td>
               <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:isVal?"#2E7D32":CL.greyDk}}>{formatDateExt(year,month,r.day)}</td>
               <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",color:CL.greyMd}}>{r.presenza}</td>

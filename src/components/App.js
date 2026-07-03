@@ -25,6 +25,9 @@ function apiDeleteEntry(payload){
 function apiMoveEntry(payload){
   return fetch('/api/entries/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json();});
 }
+function apiValidateEntry(payload){
+  return fetch('/api/entries',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json();});
+}
 
 export default function App(){
   var ds=useState(null),data=ds[0],sData=ds[1];var ls=useState(true),loading=ls[0],sLoad=ls[1];
@@ -122,6 +125,12 @@ export default function App(){
     if(!val){await apiDeleteEntry({consultantName:consultantName,dateKey:dk,half:"full"});}
     else{var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=val[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:consultantName,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||""});}else{await apiDeleteEntry({consultantName:consultantName,dateKey:dk,half:h});}}}
   },[data]);
+  var hVE=useCallback(async function(consultantName,dk,half,isValidated){
+    await apiValidateEntry({consultantName:consultantName,dateKey:dk,half:half,validated:isValidated});
+    var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[consultantName])ent[consultantName]={};
+    var halves=half==="full"?["am","pm"]:[half];
+    halves.forEach(function(h){if(ent[consultantName][dk]&&ent[consultantName][dk][h]){ent[consultantName][dk][h]=Object.assign({},ent[consultantName][dk][h],{validated:isValidated});}});
+    nd.entries=ent;sData(nd);},[data]);
   var hCP=useCallback(async function(dk,entryData){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};ent[user][dk]=JSON.parse(JSON.stringify(entryData));nd.entries=ent;sData(nd);
     var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=entryData[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:user,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||""});}else{await apiDeleteEntry({consultantName:user,dateKey:dk,half:h});}}
   },[data,user]);
@@ -208,7 +217,7 @@ export default function App(){
             <button onClick={openMail} style={{padding:"12px 30px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Conferma Report e Invia Mail</button></div>}
         </div>);}()}
       {isAdm&&view==="admin"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Panoramica - {MESI[mo]} {yr}</h3><Panoramica entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} customHolidays={data.customHolidays||[]} onCallConsultants={data.onCallConsultants||[]} year={yr} month={mo}/></div>}
-      {isAdm&&view==="client"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Cliente - {MESI[mo]} {yr}</h3><VistaCliente entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} onCallConsultants={data.onCallConsultants||[]} year={yr} month={mo}/></div>}
+      {isAdm&&view==="client"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Cliente - {MESI[mo]} {yr}</h3><VistaCliente entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} onCallConsultants={data.onCallConsultants||[]} year={yr} month={mo} onValidate={hVE}/></div>}
       {isAdm&&view==="report"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Consulente - {MESI[mo]} {yr}</h3><Consuntivo entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} customHolidays={data.customHolidays||[]} year={yr} month={mo} onSaveEntry={hSE}/></div>}
       {isAdm&&view==="dashboard"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Dashboard - {yr}</h3><Dashboard data={data} year={yr}/></div>}</div>
     {editDay&&<DayModal dk={editDay} entry={(data.entries[user]||{})[editDay]} clients={data.clients} clientEndDates={data.clientEndDates} onSave={hSD} onClose={function(){sED(null);}}/>}
