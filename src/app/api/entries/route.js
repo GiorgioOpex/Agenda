@@ -84,6 +84,37 @@ export async function POST(request) {
   }
 }
 
+// PATCH /api/entries — aggiorna solo il campo validated di una entry esistente
+export async function PATCH(request) {
+  const envErr = envCheck();
+  if (envErr) return NextResponse.json({ error: envErr }, { status: 500, headers: HEADERS });
+  try {
+    const body = await request.json();
+    const consultantName = body.consultantName;
+    const dateKey = body.dateKey;
+    const half = body.half;
+    const validated = body.validated === true;
+
+    if (!consultantName || !dateKey || !half) {
+      return NextResponse.json({ error: 'Campi obbligatori mancanti: consultantName, dateKey, half' }, { status: 400, headers: HEADERS });
+    }
+
+    const supabase = getClient();
+    const ids = await resolveOrgAndUser(supabase, consultantName);
+    if (!ids) return NextResponse.json({ error: 'Consulente non trovato: ' + consultantName }, { status: 404, headers: HEADERS });
+
+    var q = supabase.from('entries').update({ validated: validated }).eq('user_id', ids.userId).eq('entry_date', dateKey);
+    if (half !== 'full') q = q.eq('half', half);
+    const { error } = await q;
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: HEADERS });
+    return NextResponse.json({ ok: true }, { status: 200, headers: HEADERS });
+  } catch (e) {
+    console.error('[api/entries PATCH]', e);
+    return NextResponse.json({ error: e.message }, { status: 500, headers: HEADERS });
+  }
+}
+
 // DELETE /api/entries — cancella una mezza-giornata (half="am"|"pm") o l'intera giornata (half="full")
 export async function DELETE(request) {
   const envErr = envCheck();
