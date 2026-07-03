@@ -44,7 +44,8 @@ export function VistaCliente(p){
       var eMes=mAct.byClient[c]||0;
       var rim=ct-eTot;
       var pct=ct>0?Math.round((eTot/ct)*100):0;
-      return {c:c,bud:bud,ed:ed,ct:ct,eTot:eTot,eMes:eMes,rim:rim,pct:pct};
+      var delta=eMes-bud;
+      return {c:c,bud:bud,ed:ed,ct:ct,eTot:eTot,eMes:eMes,delta:delta,rim:rim,pct:pct};
     });
     rows.sort(function(a,b){
       var va,vb,isStr=false;
@@ -57,6 +58,7 @@ export function VistaCliente(p){
         case "eMes": va=a.eMes; vb=b.eMes; break;
         // Per "rimanenti" e "copertura" i clienti senza contratto vanno
         // sempre in coda, indipendentemente dalla direzione.
+        case "delta": va=a.bud>0?a.delta:Number.POSITIVE_INFINITY; vb=b.bud>0?b.delta:Number.POSITIVE_INFINITY; break;
         case "rim": va=a.ct>0?a.rim:Number.POSITIVE_INFINITY; vb=b.ct>0?b.rim:Number.POSITIVE_INFINITY; break;
         case "pct": va=a.ct>0?a.pct:-1; vb=b.ct>0?b.pct:-1; break;
         default: va=a.c; vb=b.c; isStr=true;
@@ -78,6 +80,7 @@ export function VistaCliente(p){
           <th onClick={function(){onSort("ct");}} style={thBase}>GG contratto{arrow("ct")}</th>
           <th onClick={function(){onSort("eTot");}} style={thBase}>Erogate tot.{arrow("eTot")}</th>
           <th onClick={function(){onSort("eMes");}} style={thBase}>Erogate {MESI[month].substring(0,3)}{arrow("eMes")}</th>
+          <th onClick={function(){onSort("delta");}} style={thBase}>Delta mese{arrow("delta")}</th>
           <th onClick={function(){onSort("rim");}} style={thBase}>Rimanenti{arrow("rim")}</th>
           <th onClick={function(){onSort("pct");}} style={thBase}>Copertura{arrow("pct")}</th>
         </tr></thead>
@@ -89,6 +92,7 @@ export function VistaCliente(p){
             <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:600}}>{r.ct>0?fmtNum(r.ct):"-"}</td>
             <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.grey}}>{fmtNum(r.eTot)}</td>
             <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.red}}>{fmtNum(r.eMes)}</td>
+            <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:r.bud>0?(r.delta>=0?"#2E7D32":CL.red):CL.greyMd}}>{r.bud>0?(r.delta>=0?"+":"")+fmtNum(r.delta):"-"}</td>
             <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:r.rim<0?CL.red:"#2E7D32"}}>{r.ct>0?fmtNum(r.rim):"-"}</td>
             <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center"}}>{r.ct>0&&<div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"center"}}><div style={{width:60,height:8,background:CL.greyLt,borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:Math.min(100,r.pct)+"%",background:r.pct>=100?"#2E7D32":CL.red,borderRadius:4}}/></div><span style={{fontSize:11,fontWeight:600,color:r.pct>=100?"#2E7D32":CL.red}}>{r.pct}%</span></div>}</td>
           </tr>);})}</tbody></table></div>
