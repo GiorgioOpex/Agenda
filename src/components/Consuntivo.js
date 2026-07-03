@@ -162,6 +162,7 @@ function ConsDetail(p){
   var dayStart=viewMode==="settimanale"&&weeks.length>0?weeks[safeWeek].start:1;
   var dayEnd=viewMode==="settimanale"&&weeks.length>0?weeks[safeWeek].end:daysInMonth(year,month);
   var mon3=MESI[month].substring(0,3);
+
   var detail=useMemo(function(){var byClient={};var commDays=[];var busyDays=[];var trainDays=[];
     for(var d=dayStart;d<=dayEnd;d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
       ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
@@ -192,16 +193,69 @@ function ConsDetail(p){
       rows.push({type:"busy",label:"ALTRO IMPEGNO",gg:busyDays.length*0.5,giorni:bGiorni});}
     return rows;},[cE,year,month,dayStart,dayEnd]);
   var totCli=detail.reduce(function(s,r){return r.type==="client"?s+r.gg:s;},0);
-  var periodLabel=viewMode==="settimanale"&&weeks.length>0?"Sett. "+(safeWeek+1)+" ("+weeks[safeWeek].start+"-"+weeks[safeWeek].end+" "+mon3+") "+year:MESI[month]+" "+year;
+
+  var annualDetail=useMemo(function(){var months=[];
+    for(var m=0;m<12;m++){var byClient={};var comm=0,form=0,busy=0;
+      for(var d=1;d<=daysInMonth(year,m);d++){var e=cE[makeKey(year,m,d)];if(!e)continue;
+        ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
+          if(x.status==="client"&&x.client)byClient[x.client]=(byClient[x.client]||0)+0.5;
+          else if(x.status==="commercial")comm+=0.5;
+          else if(x.status==="training")form+=0.5;
+          else if(x.status==="busy")busy+=0.5;});}
+      var tc=Object.keys(byClient).reduce(function(s,c){return s+(byClient[c]||0);},0);
+      months.push({m:m,byClient:byClient,totCli:tc,comm:comm,form:form,busy:busy});}
+    return months;},[cE,year]);
+
+  var periodLabel=viewMode==="annuale"?String(year):viewMode==="settimanale"&&weeks.length>0?"Sett. "+(safeWeek+1)+" ("+weeks[safeWeek].start+"-"+weeks[safeWeek].end+" "+mon3+") "+year:MESI[month]+" "+year;
+  var btnStyle=function(mode){return{padding:"5px 14px",borderRadius:6,border:"1px solid "+(viewMode===mode?CL.red:"#ddd"),background:viewMode===mode?CL.red:"#fff",color:viewMode===mode?"#fff":CL.greyDk,fontSize:13,cursor:"pointer",fontFamily:FONT,fontWeight:600};};
+
   return(<div>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}><button onClick={onBack} style={Object.assign({},sO,{padding:"6px 12px",fontSize:12})}>&#8249; Indietro</button><span style={{fontSize:16,fontWeight:700,color:CL.red}}>{name}</span><span style={{fontSize:12,color:CL.greyMd}}>Consuntivo {periodLabel}</span></div>
     <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14,alignItems:"center"}}>
-      <button onClick={function(){sViewMode("mensile");}} style={{padding:"5px 14px",borderRadius:6,border:"1px solid "+(viewMode==="mensile"?CL.red:"#ddd"),background:viewMode==="mensile"?CL.red:"#fff",color:viewMode==="mensile"?"#fff":CL.greyDk,fontSize:13,cursor:"pointer",fontFamily:FONT,fontWeight:600}}>Mensile</button>
-      <button onClick={function(){sViewMode("settimanale");}} style={{padding:"5px 14px",borderRadius:6,border:"1px solid "+(viewMode==="settimanale"?CL.red:"#ddd"),background:viewMode==="settimanale"?CL.red:"#fff",color:viewMode==="settimanale"?"#fff":CL.greyDk,fontSize:13,cursor:"pointer",fontFamily:FONT,fontWeight:600}}>Settimanale</button>
+      <button onClick={function(){sViewMode("mensile");}} style={btnStyle("mensile")}>Mensile</button>
+      <button onClick={function(){sViewMode("settimanale");}} style={btnStyle("settimanale")}>Settimanale</button>
+      <button onClick={function(){sViewMode("annuale");}} style={btnStyle("annuale")}>Annuale</button>
       {viewMode==="settimanale"&&<span style={{color:"#ddd",margin:"0 2px"}}>|</span>}
       {viewMode==="settimanale"&&weeks.map(function(w,i){var isAct=i===safeWeek;return<button key={i} onClick={function(){sSelWeek(i);}} style={{padding:"4px 10px",borderRadius:6,border:"1px solid "+(isAct?CL.red:"#ddd"),background:isAct?"#FFF3F3":"#fff",color:isAct?CL.red:CL.greyMd,fontSize:12,cursor:"pointer",fontFamily:FONT,fontWeight:isAct?600:400}}>Sett.&nbsp;{i+1}&nbsp;({w.start}&ndash;{w.end}&nbsp;{mon3})</button>;})}
     </div>
-    <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
+
+    {viewMode==="annuale"&&function(){
+      var yCli=[];
+      annualDetail.forEach(function(row){Object.keys(row.byClient).forEach(function(c){if(yCli.indexOf(c)<0)yCli.push(c);});});
+      yCli.sort();
+      var yTot={totCli:0,comm:0,form:0,busy:0};var yByClient={};
+      annualDetail.forEach(function(row){
+        yTot.totCli+=row.totCli;yTot.comm+=row.comm;yTot.form+=row.form;yTot.busy+=row.busy;
+        yCli.forEach(function(c){yByClient[c]=(yByClient[c]||0)+(row.byClient[c]||0);});});
+      return(<div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
+        <thead><tr style={{background:"#FFF8F8"}}>
+          <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left",minWidth:90}}>Mese</th>
+          <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center",color:CL.red,fontWeight:700}}>GG Cli.</th>
+          {yCli.map(function(c){return<th key={c} style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center",fontSize:11,maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c}</th>;})}
+          <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center",color:"#FF8F00"}}>Comm.</th>
+          <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center",color:"#7B1FA2"}}>Form.</th>
+          <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center",color:CL.grey}}>Altro</th>
+        </tr></thead>
+        <tbody>{annualDetail.map(function(row){var isEmpty=row.totCli===0&&row.comm===0&&row.form===0&&row.busy===0;
+          return<tr key={row.m} style={{opacity:isEmpty?0.35:1}}>
+            <td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk}}>{MESI[row.m]}</td>
+            <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:row.totCli>0?CL.red:"#ccc"}}>{row.totCli>0?fmtNum(row.totCli):"-"}</td>
+            {yCli.map(function(c){var v=row.byClient[c]||0;return<td key={c} style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:v>0?CL.red:"#ccc"}}>{v>0?fmtNum(v):"-"}</td>;})}
+            <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:row.comm>0?"#FF8F00":"#ccc"}}>{row.comm>0?fmtNum(row.comm):"-"}</td>
+            <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:row.form>0?"#7B1FA2":"#ccc"}}>{row.form>0?fmtNum(row.form):"-"}</td>
+            <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",color:row.busy>0?CL.grey:"#ccc"}}>{row.busy>0?fmtNum(row.busy):"-"}</td>
+          </tr>;})}
+        <tr style={{background:"#FFF8F8"}}>
+          <td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700}}>TOTALE</td>
+          <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.red,fontSize:15}}>{fmtNum(yTot.totCli)}</td>
+          {yCli.map(function(c){return<td key={c} style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.red}}>{yByClient[c]>0?fmtNum(yByClient[c]):"-"}</td>;})}
+          <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:"#FF8F00"}}>{yTot.comm>0?fmtNum(yTot.comm):"-"}</td>
+          <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:"#7B1FA2"}}>{yTot.form>0?fmtNum(yTot.form):"-"}</td>
+          <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.grey}}>{yTot.busy>0?fmtNum(yTot.busy):"-"}</td>
+        </tr>
+        </tbody></table></div>);}()}
+
+    {viewMode!=="annuale"&&<div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,fontFamily:FONT}}>
       <thead><tr style={{background:"#FFF8F8"}}>
         <th style={{padding:"8px 14px",borderBottom:"2px solid "+CL.red,textAlign:"left"}}>Attivita</th>
         <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>GG</th>
@@ -214,8 +268,8 @@ function ConsDetail(p){
       <tr style={{background:"#FFF8F8"}}><td style={{padding:"8px 14px",borderTop:"2px solid "+CL.red,fontWeight:700}}>TOTALE CLIENTE</td>
         <td style={{padding:"8px",borderTop:"2px solid "+CL.red,textAlign:"center",fontWeight:700,color:CL.red,fontSize:15}}>{fmtNum(totCli)}</td>
         <td style={{borderTop:"2px solid "+CL.red}}/></tr>
-    </tbody></table></div>
-    {function(){var allDays=[];
+    </tbody></table></div>}
+    {viewMode!=="annuale"&&function(){var allDays=[];
       for(var d=dayStart;d<=dayEnd;d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
         ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
           var lbl=x.status==="client"&&x.client?x.client:x.status==="commercial"?"COMMERCIALE OPEX":x.status==="training"?"FORMAZIONE":x.status==="busy"?"ALTRO IMPEGNO":"";
