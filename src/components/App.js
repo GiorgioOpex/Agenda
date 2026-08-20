@@ -11,6 +11,7 @@ import { VistaCliente } from "./VistaCliente";
 import { Consuntivo } from "./Consuntivo";
 import { Dashboard } from "./Dashboard";
 import { Impostazioni } from "./Impostazioni";
+import { ReportStatusModal } from "./ReportStatus";
 
 // Destinatario fisso del Report Consulente: l'amministrazione Opex Solutions.
 var REPORT_RECIPIENT="amministrazione@opexsolutions.it";
@@ -28,6 +29,9 @@ function apiMoveEntry(payload){
 function apiValidateEntry(payload){
   return fetch('/api/entries',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json();});
 }
+function apiMarkReportGenerated(payload){
+  return fetch('/api/report-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json();});
+}
 
 export default function App(){
   var ds=useState(null),data=ds[0],sData=ds[1];var ls=useState(true),loading=ls[0],sLoad=ls[1];
@@ -36,6 +40,7 @@ export default function App(){
   var ys=useState(new Date().getFullYear()),yr=ys[0],sYr=ys[1];var ms=useState(new Date().getMonth()),mo=ms[0],sMo=ms[1];
   var es=useState(null),editDay=es[0],sED=es[1];var ss=useState(false),showS=ss[0],sSS=ss[1];
   var rs=useState(false),showReport=rs[0],sShowReport=rs[1];
+  var rst=useState(false),showReportStatus=rst[0],sShowReportStatus=rst[1];
   var cps=useState(false),showChPw=cps[0],sShowChPw=cps[1];
   var fl=useState(null),firstLogin=fl[0],sFirstLogin=fl[1];
  
@@ -183,8 +188,9 @@ export default function App(){
           return lines.join("%0D%0A");}
         // Destinatario fisso: amministrazione Opex Solutions.
         // L'eventuale email del consulente viene comunque inserita in chiusura body come firma.
-        function openMail(){var subject="Report "+user+" - "+MESI[mo]+" "+yr;
+        async function openMail(){var subject="Report "+user+" - "+MESI[mo]+" "+yr;
           var mailto="mailto:"+encodeURIComponent(REPORT_RECIPIENT)+"?subject="+encodeURIComponent(subject)+"&body="+buildMailBody();
+          await apiMarkReportGenerated({consultantName:user,year:yr,month:mo});
           window.location.href=mailto;}
         return(<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)",marginTop:16}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
@@ -216,7 +222,14 @@ export default function App(){
           {(dayRows.length>0||trainRows.length>0)&&<div style={{textAlign:"center",marginTop:16}}>
             <button onClick={openMail} style={{padding:"12px 30px",borderRadius:8,border:"none",background:CL.red,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Conferma Report e Invia Mail</button></div>}
         </div>);}()}
-      {isAdm&&view==="admin"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Panoramica - {MESI[mo]} {yr}</h3><Panoramica entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} customHolidays={data.customHolidays||[]} onCallConsultants={data.onCallConsultants||[]} year={yr} month={mo}/></div>}
+      {isAdm&&view==="admin"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+          <h3 style={{margin:0,color:CL.greyDk,fontSize:16}}>Panoramica - {MESI[mo]} {yr}</h3>
+          <button onClick={function(){sShowReportStatus(true);}} style={{padding:"7px 14px",borderRadius:8,border:"1px solid "+CL.red,background:"#fff",color:CL.red,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:FONT}}>Stato Report</button>
+        </div>
+        <Panoramica entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} customHolidays={data.customHolidays||[]} onCallConsultants={data.onCallConsultants||[]} year={yr} month={mo}/>
+        {showReportStatus&&<ReportStatusModal year={yr} month={mo} consultantEmails={data.consultantEmails||{}} onClose={function(){sShowReportStatus(false);}}/>}
+      </div>}
       {isAdm&&view==="client"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Cliente - {MESI[mo]} {yr}</h3><VistaCliente entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} onCallConsultants={data.onCallConsultants||[]} year={yr} month={mo} onValidate={hVE}/></div>}
       {isAdm&&view==="report"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Per Consulente - {MESI[mo]} {yr}</h3><Consuntivo entries={data.entries} consultants={data.consultants} clients={data.clients} clientBudgets={data.clientBudgets} clientEndDates={data.clientEndDates} customHolidays={data.customHolidays||[]} year={yr} month={mo} onSaveEntry={hSE}/></div>}
       {isAdm&&view==="dashboard"&&<div style={{background:"#fff",borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}><h3 style={{margin:"0 0 14px",color:CL.greyDk,fontSize:16}}>Dashboard - {yr}</h3><Dashboard data={data} year={yr}/></div>}</div>
