@@ -9,13 +9,13 @@ function getWeeksOfMonth(year,month){
   weeks.push({num:wNum,start:wStart,end:days});return weeks;}
 
 function isoWeek(year,month,day){
-  var jan1=new Date(year,0,1);
-  var dt=new Date(year,month,day);
-  var jan1dow=jan1.getDay()||7;
-  var dayOfYear=Math.round((dt-jan1)/86400000)+1;
-  var firstMonday=jan1dow===1?1:(9-jan1dow);
-  var wk=Math.floor((dayOfYear-firstMonday)/7)+1;
-  return wk<1?1:wk;}
+  var dt=new Date(Date.UTC(year,month,day));
+  var dow=(dt.getUTCDay()+6)%7;
+  dt.setUTCDate(dt.getUTCDate()-dow+3);
+  var firstThursday=new Date(Date.UTC(dt.getUTCFullYear(),0,4));
+  var firstDow=(firstThursday.getUTCDay()+6)%7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate()-firstDow+3);
+  return 1+Math.round((dt-firstThursday)/(7*86400000));}
 
 // workDays: lun-ven esclusi festivi.
 // actual (effettive): lun-sab esclusi festivi (sabato incluso nelle effettive).
