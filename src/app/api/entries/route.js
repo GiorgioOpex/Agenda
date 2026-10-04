@@ -46,6 +46,7 @@ export async function POST(request) {
     const status = body.status;
     const clientName = body.client || '';
     const note = body.note || '';
+    const potential = body.potential === true && status === 'client';
 
     if (!consultantName || !dateKey || !half || !status) {
       return NextResponse.json({ error: 'Campi obbligatori mancanti: consultantName, dateKey, half, status' }, { status: 400, headers: HEADERS });
@@ -73,7 +74,8 @@ export async function POST(request) {
       half: half,
       status: status,
       client_id: clientId,
-      note: note
+      note: note,
+      potential: potential
     }, { onConflict: 'user_id,entry_date,half' });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: HEADERS });

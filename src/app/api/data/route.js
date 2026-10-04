@@ -101,7 +101,8 @@ async function readData() {
       status: e.status,
       client: e.client ? e.client.name : "",
       note: e.note || "",
-      validated: e.validated === true
+      validated: e.validated === true,
+      potential: e.potential === true
     };
   });
 

@@ -72,7 +72,8 @@ export async function POST(request) {
         half: h,
         status: src.status,
         client_id: src.client_id,
-        note: src.note || ''
+        note: src.note || '',
+        potential: src.potential === true
       }, { onConflict: 'user_id,entry_date,half' });
       if (upsRes.error) return NextResponse.json({ error: upsRes.error.message }, { status: 500, headers: HEADERS });
 
