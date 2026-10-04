@@ -48,7 +48,7 @@ function MiniCalendar(p){
 
   function halfLabel(h){
     if(!h||!h.status)return"";
-    if(h.status==="client"&&h.client)return h.client.toUpperCase();
+    if(h.status==="client"&&h.client)return h.potential?"("+h.client.toUpperCase()+")":h.client.toUpperCase();
     if(h.status==="commercial")return"COMMERCIALE";
     if(h.status==="training")return"FORMAZIONE";
     return"";
@@ -109,7 +109,7 @@ function ClientDetail(p){
   var detail=useMemo(function(){var rows=[];var totEff=0;
     cons.forEach(function(n){var cE=entries[n]||{};var gg=0;var giorni=[];
       for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
-        ["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client"&&x.client===clientName){gg+=0.5;giorni.push(d+(h==="am"?"AM":"PM"));}});}
+        ["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client"&&x.client===clientName){gg+=0.5;giorni.push(d+(h==="am"?"AM":"PM")+(x.potential?" (P)":""));}});}
       if(gg>0){rows.push({name:n,gg:gg,giorni:giorni});totEff+=gg;}});
     return{rows:rows,totEff:totEff};},[entries,cons,clientName,year,month]);
   return(<div>
@@ -134,7 +134,8 @@ function ClientDetail(p){
       cons.forEach(function(n){var cE=entries[n]||{};
         for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
           var halves=[];["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client"&&x.client===clientName)halves.push(h);});
-          if(halves.length>0)dayRows.push({day:d,name:n,presenza:halves.length===2?"Intera giornata":halves[0]==="am"?"Mattina":"Pomeriggio"});}});
+          var potC=halves.some(function(h){return e[h].potential===true;});
+          if(halves.length>0)dayRows.push({day:d,name:n,presenza:(halves.length===2?"Intera giornata":halves[0]==="am"?"Mattina":"Pomeriggio")+(potC?" (potenziale)":"")});}});
       dayRows.sort(function(a,b){return a.day===b.day?a.name.localeCompare(b.name):a.day-b.day;});
       if(dayRows.length===0)return null;
       return(<div style={{marginTop:20}}>
@@ -166,18 +167,19 @@ function ConsDetail(p){
   var detail=useMemo(function(){var byClient={};var commDays=[];var busyDays=[];var trainDays=[];
     for(var d=dayStart;d<=dayEnd;d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
       ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
-        if(x.status==="client"&&x.client){if(!byClient[x.client])byClient[x.client]=[];byClient[x.client].push({day:d,half:h});}
+        if(x.status==="client"&&x.client){if(!byClient[x.client])byClient[x.client]=[];byClient[x.client].push({day:d,half:h,pot:x.potential===true});}
         if(x.status==="commercial")commDays.push({day:d,half:h});
         if(x.status==="busy")busyDays.push({day:d,half:h});
         if(x.status==="training")trainDays.push({day:d,half:h});});}
     var rows=[];
     Object.keys(byClient).forEach(function(c){var items=byClient[c];var grouped={};
-      items.forEach(function(it){if(!grouped[it.day])grouped[it.day]=[];grouped[it.day].push(it.half);});
+      items.forEach(function(it){if(!grouped[it.day])grouped[it.day]=[];grouped[it.day].push(it);});
       var gg=items.length*0.5;var giorni=[];
       Object.keys(grouped).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(d){var hh=grouped[d];
-        if(hh.length===2)giorni.push(d+" (intera)");
-        else if(hh[0]==="am")giorni.push(d+" (mattina)");
-        else giorni.push(d+" (pomeriggio)");});
+        var pt=hh.some(function(x){return x.pot;})?", potenziale":"";
+        if(hh.length===2)giorni.push(d+" (intera"+pt+")");
+        else if(hh[0].half==="am")giorni.push(d+" (mattina"+pt+")");
+        else giorni.push(d+" (pomeriggio"+pt+")");});
       rows.push({type:"client",label:c,gg:gg,giorni:giorni});});
     if(commDays.length>0){var cGrouped={};commDays.forEach(function(it){if(!cGrouped[it.day])cGrouped[it.day]=[];cGrouped[it.day].push(it.half);});
       var cGiorni=[];Object.keys(cGrouped).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(d){var hh=cGrouped[d];
@@ -272,7 +274,7 @@ function ConsDetail(p){
     {viewMode!=="annuale"&&function(){var allDays=[];
       for(var d=dayStart;d<=dayEnd;d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
         ["am","pm"].forEach(function(h){var x=e[h];if(!x||!x.status)return;
-          var lbl=x.status==="client"&&x.client?x.client:x.status==="commercial"?"COMMERCIALE OPEX":x.status==="training"?"FORMAZIONE":x.status==="busy"?"ALTRO IMPEGNO":"";
+          var lbl=x.status==="client"&&x.client?(x.potential?"("+x.client+")":x.client):x.status==="commercial"?"COMMERCIALE OPEX":x.status==="training"?"FORMAZIONE":x.status==="busy"?"ALTRO IMPEGNO":"";
           var clr=x.status==="client"?CL.red:x.status==="commercial"?"#FF8F00":x.status==="training"?"#7B1FA2":CL.grey;
           allDays.push({day:d,half:h,label:lbl,color:clr,status:x.status});});}
       var grouped={};allDays.forEach(function(it){var k=it.day+"|"+it.label;if(!grouped[k])grouped[k]={day:it.day,label:it.label,color:it.color,halves:[]};grouped[k].halves.push(it.half);});

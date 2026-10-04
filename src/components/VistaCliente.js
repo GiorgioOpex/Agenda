@@ -127,7 +127,8 @@ export function VistaCliente(p){
       cons.forEach(function(n){var cE=entries[n]||{};
         for(var d=1;d<=daysInMonth(year,month);d++){var e=cE[makeKey(year,month,d)];if(!e)continue;
           var halves=[];["am","pm"].forEach(function(h){var x=e[h];if(x&&x.status==="client"&&x.client===sel)halves.push(h);});
-          if(halves.length>0)dayRows.push({day:d,name:n,halves:halves,presenza:halves.length===2?"Intera giornata":halves[0]==="am"?"Mattina":"Pomeriggio"});}});
+          var potV=halves.some(function(h){return e[h].potential===true;});
+          if(halves.length>0)dayRows.push({day:d,name:n,halves:halves,pot:potV,presenza:halves.length===2?"Intera giornata":halves[0]==="am"?"Mattina":"Pomeriggio"});}});
       dayRows.sort(function(a,b){
         var diff=detSortKey==="consulente"?a.name.localeCompare(b.name,'it'):a.day-b.day;
         if(diff===0)diff=detSortKey==="consulente"?a.day-b.day:a.name.localeCompare(b.name,'it');
@@ -153,7 +154,7 @@ export function VistaCliente(p){
                 <input type="checkbox" checked={isVal} onChange={function(ev){var halfArg=r.halves.length===2?"full":r.halves[0];onValidate(r.name,makeKey(year,month,r.day),halfArg,ev.target.checked);}} style={{cursor:"pointer",width:15,height:15,accentColor:"#2E7D32"}}/>
               </td>
               <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:isVal?"#2E7D32":CL.greyDk}}>{formatDateExt(year,month,r.day)}</td>
-              <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",color:CL.greyMd}}>{r.presenza}</td>
+              <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",color:CL.greyMd}}>{r.presenza}{r.pot&&<span style={{marginLeft:6,fontSize:10,fontWeight:700,color:CL.red,background:"#FFF3F3",border:"1px solid "+CL.red,borderRadius:3,padding:"1px 5px"}}>P</span>}</td>
               <td style={{padding:"6px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:isOC?"#1565C0":CL.red}}>{r.name}{isOC&&<span style={{marginLeft:5,fontSize:10,fontWeight:400,color:"#1565C0",background:"#E3F2FD",borderRadius:3,padding:"1px 4px"}}>ch.</span>}</td>
             </tr>;})}
           </tbody></table></div></div>);}()}

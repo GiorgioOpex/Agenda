@@ -46,7 +46,7 @@ export function getHalfBg(half,clients){
   if(half.status==="busy")return CL.grey;
   if(half.status==="commercial")return "#FF8F00";
   if(half.status==="training")return "#7B1FA2";
-  if(half.status==="client"&&half.client)return getClientColor(clients,half.client);
+  if(half.status==="client"&&half.client){var cc=getClientColor(clients,half.client);return half.potential&&cc.length===7?cc+"80":cc;}
   return CL.red;}
 
 export function getInitials(half){

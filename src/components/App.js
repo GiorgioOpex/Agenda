@@ -168,8 +168,8 @@ export default function App(){
         var cE=data.entries[user]||{};var dayRows=[];var trainRows=[];
         for(var d=1;d<=daysInMonth(yr,mo);d++){var e=cE[makeKey(yr,mo,d)];if(!e)continue;
           var fd=firstDow(yr,mo);var isSun=(fd+d-1)%7===6;if(isSun)continue;
-          var amC=e.am&&e.am.status==="client"&&e.am.client?e.am.client:null;
-          var pmC=e.pm&&e.pm.status==="client"&&e.pm.client?e.pm.client:null;
+          var amC=e.am&&e.am.status==="client"&&e.am.client?(e.am.potential?"("+e.am.client+")":e.am.client):null;
+          var pmC=e.pm&&e.pm.status==="client"&&e.pm.client?(e.pm.potential?"("+e.pm.client+")":e.pm.client):null;
           var amT=e.am&&e.am.status==="training";var pmT=e.pm&&e.pm.status==="training";
           if(amC&&pmC&&amC===pmC){dayRows.push({day:d,client:amC,presenza:"Intera giornata"});}
           else{if(amC)dayRows.push({day:d,client:amC,presenza:"Mattina"});if(pmC)dayRows.push({day:d,client:pmC,presenza:"Pomeriggio"});}
