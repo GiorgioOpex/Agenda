@@ -114,7 +114,7 @@ export default function App(){
   }
   var hSD=useCallback(async function(dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};if(val)ent[user][dk]=val;else delete ent[user][dk];nd.entries=ent;sData(nd);sED(null);
     if(!val){await apiDeleteEntry({consultantName:user,dateKey:dk,half:"full"});}
-    else{var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=val[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:user,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||""});}else{await apiDeleteEntry({consultantName:user,dateKey:dk,half:h});}}}
+    else{var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=val[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:user,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||"",potential:hd.potential===true});}else{await apiDeleteEntry({consultantName:user,dateKey:dk,half:h});}}}
   },[data,user]);
   var hMV=useCallback(async function(fromDk,toDk,fromEntry,half){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};
     var src=ent[user][fromDk];if(!src)return;var dst=ent[user][toDk]||{};
@@ -128,7 +128,7 @@ export default function App(){
     await saveAll(p);},[data]);
   var hSE=useCallback(async function(consultantName,dk,val){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[consultantName])ent[consultantName]={};if(val)ent[consultantName][dk]=val;else delete ent[consultantName][dk];nd.entries=ent;sData(nd);
     if(!val){await apiDeleteEntry({consultantName:consultantName,dateKey:dk,half:"full"});}
-    else{var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=val[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:consultantName,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||""});}else{await apiDeleteEntry({consultantName:consultantName,dateKey:dk,half:h});}}}
+    else{var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=val[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:consultantName,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||"",potential:hd.potential===true});}else{await apiDeleteEntry({consultantName:consultantName,dateKey:dk,half:h});}}}
   },[data]);
   var hVE=useCallback(async function(consultantName,dk,half,isValidated){
     await apiValidateEntry({consultantName:consultantName,dateKey:dk,half:half,validated:isValidated});
@@ -137,7 +137,7 @@ export default function App(){
     halves.forEach(function(h){if(ent[consultantName][dk]&&ent[consultantName][dk][h]){ent[consultantName][dk][h]=Object.assign({},ent[consultantName][dk][h],{validated:isValidated});}});
     nd.entries=ent;sData(nd);},[data]);
   var hCP=useCallback(async function(dk,entryData){var nd=Object.assign({},data);var ent=Object.assign({},nd.entries);if(!ent[user])ent[user]={};ent[user][dk]=JSON.parse(JSON.stringify(entryData));nd.entries=ent;sData(nd);
-    var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=entryData[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:user,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||""});}else{await apiDeleteEntry({consultantName:user,dateKey:dk,half:h});}}
+    var hl=["am","pm"];for(var hi=0;hi<hl.length;hi++){var h=hl[hi];var hd=entryData[h];if(hd&&hd.status){await apiUpsertEntry({consultantName:user,dateKey:dk,half:h,status:hd.status,client:hd.client||"",note:hd.note||"",potential:hd.potential===true});}else{await apiDeleteEntry({consultantName:user,dateKey:dk,half:h});}}
   },[data,user]);
   // Cambio mese: chiude sempre l'eventuale Report aperto, in modo che il consulente
   // debba riaprirlo esplicitamente nel nuovo mese (e solo se mese corrente o passato).

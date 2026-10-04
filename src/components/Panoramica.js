@@ -64,6 +64,7 @@ export function Panoramica(p){
     if(!half||!half.status)return "";
     if(half.status==="busy")return "X";
     if(half.status==="commercial")return "C";
+    if(half.status==="client"&&half.potential)return "P";
     return "";
   }
 
