@@ -14,7 +14,7 @@ function HalfEditor(p){
 }
 
 export function DayModal(p){
-  var dk=p.dk,entry=p.entry,clients=p.clients,clientEndDates=p.clientEndDates||{},onSave=p.onSave,onClose=p.onClose;
+  var dk=p.dk,entry=p.entry,clients=p.clients,clientEndDates=p.clientEndDates||{},clientStartDates=p.clientStartDates||{},onSave=p.onSave,onClose=p.onClose;
   var a1=useState(entry&&entry.am?entry.am.status||"":""),as=a1[0],sAs=a1[1];
   var a2=useState(entry&&entry.am?entry.am.client||"":""),ac=a2[0],sAc=a2[1];
   var a3=useState(entry&&entry.am?entry.am.note||"":""),an=a3[0],sAn=a3[1];
@@ -32,6 +32,12 @@ export function DayModal(p){
     return dayDate>endDate;
   }
 
+  // Contratto non ancora iniziato: blocco non aggirabile (nemmeno con "Giornata potenziale").
+  function isBeforeStart(clientName){
+    if(!clientName||!clientStartDates[clientName])return false;
+    return dk<clientStartDates[clientName];
+  }
+
   function expiredMsg(clientName){
     if(!clientName)return null;
     var ed=clientEndDates[clientName];
@@ -42,6 +48,8 @@ export function DayModal(p){
   async function doSave(){
     if(as==="client"&&!ac){alert("Seleziona un cliente (mattina)");return;}
     if(ps==="client"&&!pc){alert("Seleziona un cliente (pomeriggio)");return;}
+    if(as==="client"&&ac&&isBeforeStart(ac)){alert("Non puoi inserire "+ac+" in questa data: il contratto inizia il "+clientStartDates[ac]);return;}
+    if(ps==="client"&&pc&&isBeforeStart(pc)){alert("Non puoi inserire "+pc+" in questa data: il contratto inizia il "+clientStartDates[pc]);return;}
     if(as==="client"&&ac&&!apot&&isExpired(ac)){alert("Non puoi inserire "+ac+" in questa data: il contratto e' scaduto il "+clientEndDates[ac]);return;}
     if(ps==="client"&&pc&&!ppot&&isExpired(pc)){alert("Non puoi inserire "+pc+" in questa data: il contratto e' scaduto il "+clientEndDates[pc]);return;}
     sSv(true);var data={};if(as)data.am={status:as,client:as==="client"?ac:"",note:an,potential:as==="client"&&apot};if(ps)data.pm={status:ps,client:ps==="client"?pc:"",note:pn,potential:ps==="client"&&ppot};

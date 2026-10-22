@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
-import { CL, FONT, MESI, sI, sIPw, sB, sO, fmtNum, hashPw, calcMonthlyPlanned, listHolidaysForYear } from "./shared";
+import { CL, FONT, MESI, sI, sIPw, sB, sO, fmtNum, hashPw, calcMonthlyPlanned, isClientActiveInMonth, listHolidaysForYear } from "./shared";
 
 export function Impostazioni(p){
   var data=p.data,onSave=p.onSave,onClose=p.onClose;
   var c1=useState([].concat(data.consultants)),cl=c1[0],sCl=c1[1];var l1=useState([].concat(data.clients)),ll=l1[0],sLl=l1[1];
   var a1=useState([].concat(data.admins)),al=a1[0],sAl=a1[1];var b1=useState(Object.assign({},data.clientBudgets||{})),bud=b1[0],sBud=b1[1];
   var ed1=useState(Object.assign({},data.clientEndDates||{})),endD=ed1[0],sEndD=ed1[1];
+  var sd0=useState(Object.assign({},data.clientStartDates||{})),startD=sd0[0],sStartD=sd0[1];
   var oc1=useState([].concat(data.onCallConsultants||[])),onCallCons=oc1[0],sOnCallCons=oc1[1];
   var ce1=useState(Object.assign({},data.consultantEmails||{})),cEmails=ce1[0],sCEmails=ce1[1];
   var t1=useState(data.targetMensile||0),tM=t1[0],sTM=t1[1];
@@ -37,7 +38,9 @@ export function Impostazioni(p){
   function validateClients(){
     for(var i=0;i<ll.length;i++){var c=ll[i];
       if(!bud[c]||bud[c]<=0)return "Il cliente \""+c+"\" non ha le giornate previste/mese";
-      if(!endD[c])return "Il cliente \""+c+"\" non ha la data fine contratto";}
+      if(!startD[c])return "Il cliente \""+c+"\" non ha la data inizio contratto";
+      if(!endD[c])return "Il cliente \""+c+"\" non ha la data fine contratto";
+      if(startD[c]>endD[c])return "Il cliente \""+c+"\" ha la data inizio dopo la data fine contratto";}
     return null;}
   function validateConsultants(){
     for(var i=0;i<cl.length;i++){var c=cl[i];
@@ -47,9 +50,10 @@ export function Impostazioni(p){
   async function doSave(){
     var err=validateClients();if(!err)err=validateConsultants();
     if(err){sSaveErr(err);return;}
-    sSaveErr("");sSv(true);await onSave(cl,ll,al,bud,endD,tM,cEmails,cHols,onCallCons);sSv(false);}
+    sSaveErr("");sSv(true);await onSave(cl,ll,al,bud,endD,tM,cEmails,cHols,onCallCons,startD);sSv(false);}
   function missingBud(c){return !bud[c]||bud[c]<=0;}
   function missingEnd(c){return !endD[c];}
+  function missingStart(c){return !startD[c];}
 
   async function resetPwd(name){
     if(!confirm("Vuoi resettare la password di \""+name+"\" al valore di default \"Opex2026\"?\n\nL'utente dovra' impostarne una nuova al prossimo accesso."))return;
@@ -80,7 +84,7 @@ export function Impostazioni(p){
   function getSortedClients(){
     return ll.slice().sort(function(a,b){
       var va,vb,isStr=false;
-      switch(clSortKey){case "name": va=a; vb=b; isStr=true; break;case "bud": va=bud[a]||0; vb=bud[b]||0; break;case "end": va=endD[a]||""; vb=endD[b]||""; isStr=true; break;default: va=a; vb=b; isStr=true;}
+      switch(clSortKey){case "name": va=a; vb=b; isStr=true; break;case "bud": va=bud[a]||0; vb=bud[b]||0; break;case "start": va=startD[a]||""; vb=startD[b]||""; isStr=true; break;case "end": va=endD[a]||""; vb=endD[b]||""; isStr=true; break;default: va=a; vb=b; isStr=true;}
       var diff;if(isStr){diff=String(va).localeCompare(String(vb),'it');}else{diff=(va-vb);}
       if(diff===0)diff=a.localeCompare(b,'it');
       return clSortDir==="asc"?diff:-diff;});}
@@ -94,10 +98,9 @@ export function Impostazioni(p){
 
   // Riepilogo richieste
   var nowD=new Date(),curY=nowD.getFullYear(),curM=nowD.getMonth();
-  var requestedThisMonth=calcMonthlyPlanned(ll,bud,endD,curY,curM);
+  var requestedThisMonth=calcMonthlyPlanned(ll,bud,endD,curY,curM,startD,cHols);
   var activeClientsThisMonth=ll.filter(function(c){
-    if(!endD[c])return true;var end=new Date(endD[c]);if(isNaN(end.getTime()))return true;
-    return end>=new Date(curY,curM,1);}).length;
+    return isClientActiveInMonth(endD[c],curY,curM,startD[c]);}).length;
   var totalConfigured=ll.reduce(function(s,c){return s+(bud[c]||0);},0);
 
   // Festivita': lista nazionale + personalizzate per l'anno corrente
@@ -118,7 +121,7 @@ export function Impostazioni(p){
   var sortBtn={padding:"4px 10px",borderRadius:6,border:"1px solid #ddd",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:FONT,color:CL.greyDk,fontWeight:600};
 
   return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
-    <div onClick={function(e){e.stopPropagation();}} style={{background:"#fff",borderRadius:16,padding:28,width:780,maxWidth:"96vw",maxHeight:"88vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.2)",fontFamily:FONT}}>
+    <div onClick={function(e){e.stopPropagation();}} style={{background:"#fff",borderRadius:16,padding:28,width:940,maxWidth:"96vw",maxHeight:"88vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.2)",fontFamily:FONT}}>
       <h3 style={{margin:"0 0 16px",fontSize:20,color:CL.greyDk}}>Gestione</h3>
       <div style={{display:"flex",gap:4,marginBottom:20,flexWrap:"wrap"}}>{[["people","Consulenti"],["clients","Clienti e Budget"],["target","Target"],["holidays","Festivita'"],["admins","Admin"]].map(function(t){return<button key={t[0]} onClick={function(){sTab(t[0]);sSaveErr("");sResetMsg("");}} style={{padding:"8px 14px",borderRadius:8,border:"none",fontSize:12,fontWeight:tab===t[0]?700:400,cursor:"pointer",fontFamily:FONT,background:tab===t[0]?CL.red:"#f0f0f0",color:tab===t[0]?"#fff":CL.greyMd}}>{t[1]}</button>;})}</div>
 
@@ -143,11 +146,12 @@ export function Impostazioni(p){
           <input value={nce} onChange={function(e){sNce(e.target.value);}} placeholder="email@..." style={Object.assign({},sI,{flex:"1 1 180px",fontSize:12})}/>
           <button onClick={function(){if(nc.trim()&&nce.trim()){var nome=nc.trim().toUpperCase();sCl([].concat(cl,[nome]));var ne=Object.assign({},cEmails);ne[nome]=nce.trim().toLowerCase();sCEmails(ne);sNc("");sNce("");}}} style={sB}>+</button></div></div>}
 
-      {tab==="clients"&&<div><h4 style={{margin:"0 0 10px",color:CL.red}}>Clienti, giornate/mese e fine contratto</h4>
+      {tab==="clients"&&<div><h4 style={{margin:"0 0 10px",color:CL.red}}>Clienti, giornate/mese, inizio e fine contratto</h4>
         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10,flexWrap:"wrap",fontSize:11,color:CL.greyMd}}>
           <span>Ordina:</span>
           <button onClick={function(){onClSort("name");}} style={Object.assign({},sortBtn,{borderColor:clSortKey==="name"?CL.red:"#ddd"})}>Nome{clArrow("name")}</button>
           <button onClick={function(){onClSort("bud");}} style={Object.assign({},sortBtn,{borderColor:clSortKey==="bud"?CL.red:"#ddd"})}>gg/mese{clArrow("bud")}</button>
+          <button onClick={function(){onClSort("start");}} style={Object.assign({},sortBtn,{borderColor:clSortKey==="start"?CL.red:"#ddd"})}>Inizio contratto{clArrow("start")}</button>
           <button onClick={function(){onClSort("end");}} style={Object.assign({},sortBtn,{borderColor:clSortKey==="end"?CL.red:"#ddd"})}>Fine contratto{clArrow("end")}</button>
         </div>
         {getSortedClients().map(function(c){return<div key={c} style={{marginBottom:10}}>
@@ -155,10 +159,13 @@ export function Impostazioni(p){
             <span style={{flex:"1 1 120px",padding:"6px 10px",background:CL.greyLt,borderRadius:6,fontSize:14}}>{c}</span>
             <input type="number" min="0" step="0.5" value={bud[c]||""} onChange={function(e){var nb=Object.assign({},bud);nb[c]=parseFloat(e.target.value)||0;sBud(nb);sSaveErr("");}} placeholder="gg" style={Object.assign({},sI,{flex:"0 0 70px",textAlign:"center",padding:"6px",border:missingBud(c)?"2px solid #e53935":"1px solid #ddd"})}/>
             <span style={{fontSize:10,color:"#888"}}>gg/m</span>
+            <input type="date" value={startD[c]||""} onChange={function(e){var ns=Object.assign({},startD);ns[c]=e.target.value;sStartD(ns);sSaveErr("");}} title="Inizio contratto" style={Object.assign({},sI,{flex:"0 0 130px",padding:"6px 8px",fontSize:12,border:missingStart(c)?"2px solid #e53935":"1px solid #ddd"})}/>
+            <span style={{fontSize:10,color:"#888"}}>→</span>
             <input type="date" value={endD[c]||""} onChange={function(e){var ne=Object.assign({},endD);ne[c]=e.target.value;sEndD(ne);sSaveErr("");}} style={Object.assign({},sI,{flex:"0 0 130px",padding:"6px 8px",fontSize:12,border:missingEnd(c)?"2px solid #e53935":"1px solid #ddd"})}/>
-            <button onClick={function(){sLl(ll.filter(function(x){return x!==c;}));var nb=Object.assign({},bud);delete nb[c];sBud(nb);var ne=Object.assign({},endD);delete ne[c];sEndD(ne);}} style={{background:"none",border:"none",color:CL.red,cursor:"pointer",fontSize:18}}>x</button></div>
-          {(missingBud(c)||missingEnd(c))&&<div style={{fontSize:11,color:"#e53935",marginTop:3,paddingLeft:4}}>
+            <button onClick={function(){sLl(ll.filter(function(x){return x!==c;}));var nb=Object.assign({},bud);delete nb[c];sBud(nb);var ne=Object.assign({},endD);delete ne[c];sEndD(ne);var ns2=Object.assign({},startD);delete ns2[c];sStartD(ns2);}} style={{background:"none",border:"none",color:CL.red,cursor:"pointer",fontSize:18}}>x</button></div>
+          {(missingBud(c)||missingStart(c)||missingEnd(c))&&<div style={{fontSize:11,color:"#e53935",marginTop:3,paddingLeft:4}}>
             {missingBud(c)&&<span>Inserisci giornate/mese </span>}
+            {missingStart(c)&&<span>Inserisci data inizio contratto </span>}
             {missingEnd(c)&&<span>Inserisci data fine contratto</span>}
           </div>}
         </div>;})}

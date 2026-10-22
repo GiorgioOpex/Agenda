@@ -5,7 +5,7 @@ import { CL, FONT, makeKey, daysInMonth, firstDow, fmtNum, getHalfBg, getClientC
 var BUSY_COMM_BG="#000";
 
 export function Panoramica(p){
-  var entries=p.entries,cons=p.consultants,clients=p.clients||[],cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month,customHolidays=p.customHolidays||[],onCallConsultants=p.onCallConsultants||[];
+  var entries=p.entries,cons=p.consultants,clients=p.clients||[],cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},cStart=p.clientStartDates||{},year=p.year,month=p.month,customHolidays=p.customHolidays||[],onCallConsultants=p.onCallConsultants||[];
   var days=daysInMonth(year,month),fd=firstDow(year,month);
   var fs=useState(null),filter=fs[0],sFilter=fs[1];
   var onCallSet={};onCallConsultants.forEach(function(n){onCallSet[n]=true;});
@@ -35,7 +35,7 @@ export function Panoramica(p){
   var workDays=0;
   for(var d=1;d<=days;d++){if((fd+d-1)%7<5&&!isHoliday(year,month,d,customHolidays))workDays++;}
 
-  var totPreviste=calcMonthlyPlanned(clients,cBud,cEnd,year,month);
+  var totPreviste=calcMonthlyPlanned(clients,cBud,cEnd,year,month,cStart,customHolidays);
   var totDisponibili=workDays*opexCount-totCliOpex-totBusyOpex-totCommOpex-totTrainOpex;
 
   function matchFilter(half){

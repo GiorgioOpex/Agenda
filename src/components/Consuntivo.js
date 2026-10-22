@@ -4,7 +4,7 @@ import { MESI, GIORNI, CL, FONT, sI, sB, sO, fmtNum, makeKey, parseKey, daysInMo
 import { DayModal } from "./DayModal";
 
 function MiniCalendar(p){
-  var name=p.name,entries=p.entries,clients=p.clients,clientEndDates=p.clientEndDates||{},year=p.year,month=p.month,onSave=p.onSave,onBack=p.onBack,customHolidays=p.customHolidays||[];
+  var name=p.name,entries=p.entries,clients=p.clients,clientEndDates=p.clientEndDates||{},clientStartDates=p.clientStartDates||{},year=p.year,month=p.month,onSave=p.onSave,onBack=p.onBack,customHolidays=p.customHolidays||[];
   var days=daysInMonth(year,month),fd=firstDow(year,month),cells=[];
   for(var i=0;i<fd;i++)cells.push(null);for(var dd=1;dd<=days;dd++)cells.push(dd);
   var today=new Date();var cE=entries[name]||{};
@@ -99,7 +99,7 @@ function MiniCalendar(p){
       </div>
     </div>}
 
-    {editKey&&<DayModal dk={editKey} entry={cE[editKey]} clients={clients} clientEndDates={clientEndDates} onSave={saveDay} onClose={function(){sEditKey(null);}}/>}
+    {editKey&&<DayModal dk={editKey} entry={cE[editKey]} clients={clients} clientEndDates={clientEndDates} clientStartDates={clientStartDates} onSave={saveDay} onClose={function(){sEditKey(null);}}/>}
   </div>);
 }
 
@@ -302,7 +302,7 @@ function getWeeksInMonth(year,month){
   return weeks;}
 
 export function Consuntivo(p){
-  var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},clientEndDates=p.clientEndDates||{},year=p.year,month=p.month,onSaveEntry=p.onSaveEntry,customHolidays=p.customHolidays||[];
+  var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},clientEndDates=p.clientEndDates||{},clientStartDates=p.clientStartDates||{},year=p.year,month=p.month,onSaveEntry=p.onSaveEntry,customHolidays=p.customHolidays||[];
   var cs=useState(null),selCons=cs[0],sSelCons=cs[1];
   var ms=useState(null),selMode=ms[0],sSelMode=ms[1];
   var vm=useState("mensile"),viewMode=vm[0],sViewMode=vm[1];
@@ -323,7 +323,7 @@ export function Consuntivo(p){
   var mc=useState(null),menuCons=mc[0],sMenuCons=mc[1];
   var mr=useState(null),menuRect=mr[0],sMenuRect=mr[1];
 
-  if(selCons&&selMode==="agenda")return<MiniCalendar name={selCons} entries={entries} clients={clients} clientEndDates={clientEndDates} customHolidays={customHolidays} year={year} month={month} onSave={onSaveEntry} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
+  if(selCons&&selMode==="agenda")return<MiniCalendar name={selCons} entries={entries} clients={clients} clientEndDates={clientEndDates} clientStartDates={clientStartDates} customHolidays={customHolidays} year={year} month={month} onSave={onSaveEntry} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
   if(selCons&&selMode==="detail")return<ConsDetail name={selCons} entries={entries} clients={clients} year={year} month={month} onBack={function(){sSelCons(null);sSelMode(null);}}/>;
 
   var weeks=getWeeksInMonth(year,month);

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
-import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcMonthlyPlanned, isClientActiveInMonth, makeKey, daysInMonth, firstDow, isHoliday } from "./shared";
+import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcMonthlyPlanned, isClientActiveInMonth, clientPlannedInMonth, makeKey, daysInMonth, firstDow, isHoliday } from "./shared";
 
 function getWeeksOfMonth(year,month){
   var days=daysInMonth(year,month),fd=firstDow(year,month),weeks=[];
@@ -122,6 +122,7 @@ export function Dashboard(p){
   var clients=data.clients||[];
   var clientBudgets=data.clientBudgets||{};
   var clientEndDates=data.clientEndDates||{};
+  var clientStartDates=data.clientStartDates||{};
   var customHolidays=data.customHolidays||[];
   var cM=new Date().getMonth();
   var vs=useState("monthly"),viewMode=vs[0],sViewMode=vs[1];
@@ -132,7 +133,7 @@ export function Dashboard(p){
   // Array delle giornate previste per ciascuno dei 12 mesi: somma dei gg/mese
   // dei soli clienti il cui contratto e' ancora attivo nel mese specifico.
   // I clienti con contratto scaduto prima del primo giorno del mese contano 0.
-  var monthlyPlanned=useMemo(function(){var arr=[];for(var mi=0;mi<12;mi++){arr.push(calcMonthlyPlanned(clients,clientBudgets,clientEndDates,year,mi));}return arr;},[clients,clientBudgets,clientEndDates,year]);
+  var monthlyPlanned=useMemo(function(){var arr=[];for(var mi=0;mi<12;mi++){arr.push(calcMonthlyPlanned(clients,clientBudgets,clientEndDates,year,mi,clientStartDates,customHolidays));}return arr;},[clients,clientBudgets,clientEndDates,clientStartDates,customHolidays,year]);
 
   var months=useMemo(function(){return MESI.map(function(nome,mi){var a=calcMonthActuals(data.entries,data.consultants,year,mi);return{nome:nome.substring(0,3),actual:a.totalClient,planned:monthlyPlanned[mi]||0,target:target,byClient:a.byClient};});},[data,year,target,monthlyPlanned]);
 
@@ -192,8 +193,8 @@ export function Dashboard(p){
             <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>Previste</th>
             <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>Effettive</th>
             <th style={{padding:"8px",borderBottom:"2px solid "+CL.red,textAlign:"center"}}>Delta</th></tr></thead>
-          <tbody>{(data.clients||[]).map(function(c){var eff=months[selMonth].byClient[c]||0;var active=isClientActiveInMonth(clientEndDates[c],year,selMonth);var bud=active?(clientBudgets[c]||0):0;var diff=eff-bud;
-            return<tr key={c}><td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>{c}{!active&&<span style={{marginLeft:6,fontSize:10,color:CL.red,fontWeight:700}}>(scaduto)</span>}</td>
+          <tbody>{(data.clients||[]).map(function(c){var eff=months[selMonth].byClient[c]||0;var active=isClientActiveInMonth(clientEndDates[c],year,selMonth,clientStartDates[c]);var bud=clientPlannedInMonth(clientBudgets[c],clientEndDates[c],clientStartDates[c],year,selMonth,customHolidays);var notStarted=!!clientStartDates[c]&&new Date(year,selMonth+1,0)<new Date(clientStartDates[c]+"T00:00:00");var diff=eff-bud;
+            return<tr key={c}><td style={{padding:"8px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.greyDk,textAlign:"left"}}>{c}{!active&&<span style={{marginLeft:6,fontSize:10,color:CL.red,fontWeight:700}}>{notStarted?"(non iniziato)":"(scaduto)"}</span>}</td>
               <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center"}}>{fmtNum(bud)}</td>
               <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.red}}>{fmtNum(eff)}</td>
               <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:diff>=0?"#2E7D32":CL.red}}>{(diff>=0?"+":"")+fmtNum(diff)}</td></tr>;})}

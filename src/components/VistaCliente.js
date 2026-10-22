@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcAllActuals, calcContractTotal, findClientFirstEntry, makeKey, daysInMonth } from "./shared";
+import { MESI, CL, FONT, sI, sO, fmtNum, calcMonthActuals, calcAllActuals, calcContractTotal, clientPlannedInMonth, findClientFirstEntry, makeKey, daysInMonth } from "./shared";
 
 var GIORNI_SETT=["Domenica","Lunedi'","Martedi'","Mercoledi'","Giovedi'","Venerdi'","Sabato"];
 
@@ -10,7 +10,7 @@ function formatDateExt(year,month,day){
 }
 
 export function VistaCliente(p){
-  var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},year=p.year,month=p.month,onCallConsultants=p.onCallConsultants||[],onValidate=p.onValidate||function(){};
+  var entries=p.entries,cons=p.consultants,clients=p.clients,cBud=p.clientBudgets||{},cEnd=p.clientEndDates||{},cStart=p.clientStartDates||{},customHolidays=p.customHolidays||[],year=p.year,month=p.month,onCallConsultants=p.onCallConsultants||[],onValidate=p.onValidate||function(){};
   var onCallSet={};onCallConsultants.forEach(function(n){onCallSet[n]=true;});
   var ss=useState(""),sel=ss[0],setSel=ss[1];
   // Stato di ordinamento della tabella riepilogo: chiave colonna + direzione (asc/desc).
@@ -42,14 +42,15 @@ export function VistaCliente(p){
     var rows=clients.map(function(c){
       var bud=cBud[c]||0;
       var ed=cEnd[c]||"";
+      var st=cStart[c]||"";
       var fe=findClientFirstEntry(c,entries,cons);
-      var ct=calcContractTotal(bud,ed,fe);
+      var ct=calcContractTotal(bud,ed,fe,st);
       var eTot=aAct[c]||0;
       var eMes=mAct.byClient[c]||0;
       var rim=ct-eTot;
       var pct=ct>0?Math.round((eTot/ct)*100):0;
-      var delta=eMes-bud;
-      return {c:c,bud:bud,ed:ed,ct:ct,eTot:eTot,eMes:eMes,delta:delta,rim:rim,pct:pct};
+      var delta=eMes-clientPlannedInMonth(bud,ed,st,year,month,customHolidays);
+      return {c:c,bud:bud,ed:ed,st:st,ct:ct,eTot:eTot,eMes:eMes,delta:delta,rim:rim,pct:pct};
     });
     rows.sort(function(a,b){
       var va,vb,isStr=false;
@@ -57,6 +58,7 @@ export function VistaCliente(p){
         case "name": va=a.c; vb=b.c; isStr=true; break;
         case "bud": va=a.bud; vb=b.bud; break;
         case "ed": va=a.ed||""; vb=b.ed||""; isStr=true; break;
+        case "st": va=a.st||""; vb=b.st||""; isStr=true; break;
         case "ct": va=a.ct; vb=b.ct; break;
         case "eTot": va=a.eTot; vb=b.eTot; break;
         case "eMes": va=a.eMes; vb=b.eMes; break;
@@ -80,6 +82,7 @@ export function VistaCliente(p){
         <thead><tr style={{background:"#FFF8F8"}}>
           <th onClick={function(){onSort("name");}} style={thLeft}>Cliente{arrow("name")}</th>
           <th onClick={function(){onSort("bud");}} style={thBase}>gg/mese{arrow("bud")}</th>
+          <th onClick={function(){onSort("st");}} style={thBase}>Inizio contratto{arrow("st")}</th>
           <th onClick={function(){onSort("ed");}} style={thBase}>Fine contratto{arrow("ed")}</th>
           <th onClick={function(){onSort("ct");}} style={thBase}>GG contratto{arrow("ct")}</th>
           <th onClick={function(){onSort("eTot");}} style={thBase}>Erogate tot.{arrow("eTot")}</th>
@@ -92,6 +95,7 @@ export function VistaCliente(p){
           return(<tr key={r.c} onClick={function(){setSel(r.c);}} style={{cursor:"pointer"}}>
             <td style={{padding:"10px 14px",borderBottom:"1px solid #eee",fontWeight:600,color:CL.red,textAlign:"left"}}>{r.c}</td>
             <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center"}}>{fmtNum(r.bud)}</td>
+            <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontSize:12}}>{r.st||"-"}</td>
             <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontSize:12}}>{r.ed||"-"}</td>
             <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:600}}>{r.ct>0?fmtNum(r.ct):"-"}</td>
             <td style={{padding:"8px",borderBottom:"1px solid #eee",textAlign:"center",fontWeight:700,color:CL.grey}}>{fmtNum(r.eTot)}</td>
@@ -103,14 +107,14 @@ export function VistaCliente(p){
       <p style={{marginTop:12,fontSize:11,color:"#aaa"}}>Clicca sull'intestazione di una colonna per ordinare. Clicca su una riga cliente per il dettaglio. Valori in giornate (0.5 = mezza giornata).</p></div>);
   }
   // Dettaglio cliente: stesso principio, prima giornata in agenda come ancora del conteggio.
-  var bud=cBud[sel]||0,ed=cEnd[sel]||"",feSel=findClientFirstEntry(sel,entries,cons),ct=calcContractTotal(bud,ed,feSel),eTot=aAct[sel]||0,act=mAct.byClient[sel]||0,rem=bud-act,cRem=ct-eTot;
+  var budCfg=cBud[sel]||0,ed=cEnd[sel]||"",stSel=cStart[sel]||"",feSel=findClientFirstEntry(sel,entries,cons),ct=calcContractTotal(budCfg,ed,feSel,stSel),bud=clientPlannedInMonth(budCfg,ed,stSel,year,month,customHolidays),inactiveMonth=budCfg>0&&bud===0,notStartedSel=inactiveMonth&&!!stSel&&new Date(year,month+1,0)<new Date(stSel+"T00:00:00"),eTot=aAct[sel]||0,act=mAct.byClient[sel]||0,rem=bud-act,cRem=ct-eTot;
   return(<div>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,flexWrap:"wrap"}}>
       <button onClick={function(){setSel("");}} style={Object.assign({},sO,{padding:"6px 12px",fontSize:12})}>&#8249; Tutti i clienti</button>
       <span style={{fontSize:18,fontWeight:700,color:CL.red}}>{sel}</span>
-      {ed&&<span style={{fontSize:12,color:CL.greyMd}}>Contratto fino al {ed}</span>}</div>
+      {(stSel||ed)&&<span style={{fontSize:12,color:CL.greyMd}}>Contratto{stSel?" dal "+stSel:""}{ed?" fino al "+ed:""}</span>}</div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12,marginBottom:20}}>
-      <div style={{padding:"14px 18px",background:"#FFF3F3",borderRadius:12,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Previste/mese</div><div style={{fontSize:24,fontWeight:700,color:CL.red}}>{fmtNum(bud)}</div></div>
+      <div style={{padding:"14px 18px",background:"#FFF3F3",borderRadius:12,border:"1px solid "+CL.red}}><div style={{fontSize:11,color:CL.greyMd}}>Previste/mese{inactiveMonth&&<span style={{marginLeft:6,fontSize:10,color:CL.red,fontWeight:700}}>{notStartedSel?"(non iniziato)":"(scaduto)"}</span>}</div><div style={{fontSize:24,fontWeight:700,color:CL.red}}>{fmtNum(Math.round(bud*10)/10)}</div></div>
       <div style={{padding:"14px 18px",background:"#E8F5E9",borderRadius:12,border:"1px solid #A5D6A7"}}><div style={{fontSize:11,color:CL.greyMd}}>Impegnate {MESI[month].substring(0,3)}</div><div style={{fontSize:24,fontWeight:700,color:"#2E7D32"}}>{fmtNum(act)}</div></div>
       <div style={{padding:"14px 18px",background:rem<0?"#FFF3F3":CL.greyLt,borderRadius:12,border:"1px solid "+(rem<0?CL.red:"#ddd")}}><div style={{fontSize:11,color:CL.greyMd}}>Rimanenti mese</div><div style={{fontSize:24,fontWeight:700,color:rem<0?CL.red:CL.greyDk}}>{fmtNum(rem)}</div></div>
       {bud>0&&<div style={{padding:"14px 18px",background:CL.greyLt,borderRadius:12,border:"1px solid #ddd"}}><div style={{fontSize:11,color:CL.greyMd}}>Copertura mese</div><div style={{fontSize:24,fontWeight:700,color:act>=bud?"#2E7D32":CL.red}}>{Math.round((act/bud)*100)}%</div></div>}</div>

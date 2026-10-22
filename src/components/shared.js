@@ -113,31 +113,57 @@ export function findClientFirstEntry(clientName,entries,consultants){
 //   - oppure mese corrente se non esistono giornate (firstEntryDate null).
 // Niente filtro sui contratti scaduti: anche per i contratti gia' chiusi viene
 // mostrato il totale storico dimensionato sulla durata effettiva del contratto.
-export function calcContractTotal(budget,endDate,firstEntryDate){
+// Se e' presente la data di inizio contratto (startDate) il conteggio parte da quel mese,
+// con il primo mese proporzionale (vedi clientStartFraction); altrimenti si ancora alla
+// prima giornata in agenda (o al mese corrente) come prima.
+export function calcContractTotal(budget,endDate,firstEntryDate,startDate){
   if(!budget||!endDate)return 0;
   var end=new Date(endDate);
-  var startBase=firstEntryDate?firstEntryDate:new Date();
+  var s=parseDateStr(startDate);
+  var startBase=s?new Date(s.y,s.m,s.d):(firstEntryDate?firstEntryDate:new Date());
   var d=new Date(startBase.getFullYear(),startBase.getMonth(),1);
   if(end<d)return 0;
-  var months=0;
-  while(d<=end){months++;d.setMonth(d.getMonth()+1);}
-  return budget*months;
+  var total=0,first=true;
+  while(d<=end){total+=budget*(first&&s?clientStartFraction(startDate,d.getFullYear(),d.getMonth()):1);first=false;d.setMonth(d.getMonth()+1);}
+  return total;
 }
 
-// Cliente attivo nel mese M dell'anno Y se la data fine contratto e' >= primo giorno di M.
-// Contratto a meta' mese: il mese e' considerato attivo a budget pieno (gg/mese intere).
-// Senza data fine contratto: trattato come sempre attivo (retro-compatibilita').
-export function isClientActiveInMonth(endDate,year,month){
+// Parsing "YYYY-MM-DD" -> {y,m(0-based),d}; null se vuota o non valida.
+function parseDateStr(s){
+  if(!s)return null;var p=String(s).split("-").map(Number);
+  if(p.length!==3||isNaN(p[0])||isNaN(p[1])||isNaN(p[2]))return null;
+  return{y:p[0],m:p[1]-1,d:p[2]};}
+
+// Frazione del mese M coperta dal contratto in base alla data di inizio:
+// 0 se il contratto inizia dopo il mese, 1 se inizia prima o nessuna data inizio,
+// altrimenti giorni lavorativi (lun-ven, esclusi festivi) dal giorno di inizio a fine mese
+// diviso i giorni lavorativi dell'intero mese.
+export function clientStartFraction(startDate,year,month,customHolidays){
+  var s=parseDateStr(startDate);if(!s)return 1;
+  var cur=year*12+month,st=s.y*12+s.m;
+  if(st>cur)return 0;if(st<cur)return 1;
+  var tot=countWorkDays(year,month,customHolidays);if(tot<=0)return 1;
+  return countWorkDaysInRange(year,month,s.d,daysInMonth(year,month),customHolidays)/tot;}
+
+// Cliente attivo nel mese M dell'anno Y se inizia entro M (startDate) e la data fine contratto e' >= primo giorno di M.
+// Contratto a meta' mese: a fine contratto il mese e' attivo a budget pieno; a inizio contratto e' proporzionale (clientStartFraction).
+// Senza data inizio / fine contratto: nessun limite da quel lato (retro-compatibilita').
+export function isClientActiveInMonth(endDate,year,month,startDate){
+  var s=parseDateStr(startDate);if(s&&(s.y*12+s.m)>(year*12+month))return false;
   if(!endDate)return true;var end=new Date(endDate);if(isNaN(end.getTime()))return true;
   var firstOfMonth=new Date(year,month,1);return end>=firstOfMonth;}
 
-// Somma dei gg/mese dei soli clienti attivi nel mese M dell'anno Y.
-// Clienti con contratto gia' scaduto al mese M non contribuiscono.
-export function calcMonthlyPlanned(clients,clientBudgets,clientEndDates,year,month){
-  var bud=clientBudgets||{},ends=clientEndDates||{};
+// gg previste di un singolo cliente nel mese M: gg/mese * frazione di inizio contratto, 0 se non attivo.
+export function clientPlannedInMonth(budget,endDate,startDate,year,month,customHolidays){
+  if(!isClientActiveInMonth(endDate,year,month,startDate))return 0;
+  return (budget||0)*clientStartFraction(startDate,year,month,customHolidays);}
+
+// Somma dei gg previsti dei soli clienti attivi nel mese M dell'anno Y.
+// Clienti con contratto scaduto o non ancora iniziato non contribuiscono; il mese di inizio e' proporzionale.
+export function calcMonthlyPlanned(clients,clientBudgets,clientEndDates,year,month,clientStartDates,customHolidays){
+  var bud=clientBudgets||{},ends=clientEndDates||{},starts=clientStartDates||{};
   return (clients||[]).reduce(function(s,c){
-    if(!isClientActiveInMonth(ends[c],year,month))return s;
-    return s+(bud[c]||0);},0);}
+    return s+clientPlannedInMonth(bud[c],ends[c],starts[c],year,month,customHolidays);},0);}
 
 // === Festivita' ===
 export var HOLIDAY_BG="#000";
@@ -203,7 +229,7 @@ export function listHolidaysForYear(year,customHolidays){
   result.sort(function(a,b){return(a.month*31+a.day)-(b.month*31+b.day);});
   return result;}
 
-export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},consultantEmails:{},entries:{},admins:[],targetMensile:0,userFlags:{},customHolidays:[]};
+export var EMPTY={consultants:[],clients:[],clientBudgets:{},clientEndDates:{},clientStartDates:{},consultantEmails:{},entries:{},admins:[],targetMensile:0,userFlags:{},customHolidays:[]};
 
 export async function loadAll(){try{var res=await fetch("/api/data?t="+Date.now());if(!res.ok)return Object.assign({},EMPTY);var d=await res.json();return Object.assign({},EMPTY,d);}catch(e){return Object.assign({},EMPTY);}}
 export async function saveAll(fd){try{var res=await fetch("/api/data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(fd)});var r=await res.json();return r.ok;}catch(e){return false;}}
