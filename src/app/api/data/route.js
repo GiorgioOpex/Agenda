@@ -69,9 +69,11 @@ async function readData() {
   var clientNames = (clients || []).map(function(c) { return c.name; });
   var clientBudgets = {};
   var clientEndDates = {};
+  var clientStartDates = {};
   (clients || []).forEach(function(c) {
     clientBudgets[c.name] = c.budget_monthly || 0;
     clientEndDates[c.name] = c.contract_end || "";
+    clientStartDates[c.name] = c.contract_start || "";
   });
   var onCallConsultants = [];
   (users || []).forEach(function(u) { if (u.is_on_call) onCallConsultants.push(u.name); });
@@ -111,6 +113,7 @@ async function readData() {
     clients: clientNames,
     clientBudgets: clientBudgets,
     clientEndDates: clientEndDates,
+    clientStartDates: clientStartDates,
     consultantEmails: consultantEmails,
     entries: entryMap,
     admins: adminList,
@@ -187,6 +190,8 @@ async function writeData(body) {
     var newClients = body.clients || [];
     var budgets = body.clientBudgets || {};
     var endDates = body.clientEndDates || {};
+    var hasStartDates = body.clientStartDates !== undefined;
+    var startDates = body.clientStartDates || {};
 
     for (var i2 = 0; i2 < existingClients.length; i2++) {
       if (newClients.indexOf(existingClients[i2]) < 0) {
@@ -195,10 +200,12 @@ async function writeData(body) {
     }
     for (var j2 = 0; j2 < newClients.length; j2++) {
       var c = newClients[j2];
+      var clientRow = { budget_monthly: budgets[c] || 0, contract_end: endDates[c] || null };
+      if (hasStartDates) clientRow.contract_start = startDates[c] || null;
       if (existingClients.indexOf(c) < 0) {
-        await supabase.from('clients').insert({ org_id: orgId, name: c, budget_monthly: budgets[c] || 0, contract_end: endDates[c] || null });
+        await supabase.from('clients').insert(Object.assign({ org_id: orgId, name: c }, clientRow));
       } else {
-        await supabase.from('clients').update({ budget_monthly: budgets[c] || 0, contract_end: endDates[c] || null }).eq('org_id', orgId).eq('name', c);
+        await supabase.from('clients').update(clientRow).eq('org_id', orgId).eq('name', c);
       }
     }
   }
